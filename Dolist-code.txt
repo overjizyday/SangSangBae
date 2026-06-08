@@ -1,0 +1,2522 @@
+0~10 까지 랜덤으로 점수를 내던 방식에서, 다음 코드를 기본으로 하여 야구를 시뮬레이션하는 방식으로 바꿔라.
+
+시뮬레이션 이후에는 현재처럼 경기 일정을 재편하는 방식으로 하라.
+
+점수를 내는 부분만 이 코드에서 적절히 가져와서 사용하면 된다.
+
+
+
+#@title Ready For Function
+# --- Minimal runtime for Simulation ---
+
+# 필요 모듈/표시 유틸
+import os, csv, glob, pickle, tempfile, shutil, logging
+from typing import Callable, Iterable, Any, Dict, List
+from IPython.display import display, HTML, clear_output
+from datetime import datetime
+import datetime as dt
+from enum import Enum
+from dataclasses import dataclass
+from pathlib import Path
+
+# ============================================================
+# 0) 상수/설정/로거
+# ============================================================
+BASE_DIR = Path("/content/drive/MyDrive/SangSangBae")
+
+def _list_years(base_dir: str | Path) -> list[int]:
+    base_dir = Path(base_dir)
+    return sorted(int(p.name) for p in base_dir.iterdir() if p.is_dir() and p.name.isdigit())
+
+def _list_files(base_dir: str, year: int, pattern: str) -> list[Path]:
+    sched = Path(base_dir) / str(year) / "schedules"
+    return list(sched.glob(pattern))
+
+def _csv_all_played_every_row(path: Path) -> bool:
+    """CSV의 모든 데이터 행에 Score_A/H가 채워져 있으면 True (빈 파일은 False)"""
+    if not path.exists():
+        return False
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    return bool(rows) and all(
+        str(r.get("Score_A", "")).strip() != "" and str(r.get("Score_H", "")).strip() != ""
+        for r in rows
+    )
+
+def get_current_season(base_dir: str) -> int:
+    """
+    최신 시즌의 승강PO(promo_*_YYYY.csv)와 챔피언십(championship_*_YYYY.csv)이
+    모두 완료되었을 때에만 다음 시즌(YYYY+1)으로 이동. 아니면 최신 시즌 유지.
+    """
+    years = _list_years(base_dir)
+    if not years:
+        raise RuntimeError("[INIT] 시즌 폴더가 없습니다.")
+    latest = years[-1]
+
+    promo_files = _list_files(base_dir, latest, f"promo_*_{latest}.csv")
+    champ_files = _list_files(base_dir, latest, f"championship_*_{latest}.csv")
+    postseason_files = [p for p in (promo_files + champ_files) if p.exists()]
+
+    # 포스트시즌 파일이 없으면 (리그만 있는 시즌 등) → 최신 시즌 유지
+    if not postseason_files:
+        return latest
+
+    all_done = all(_csv_all_played_every_row(p) for p in postseason_files)
+    return (latest + 1) if all_done else latest
+
+
+def _list_existing_years(base_dir: str | Path):
+    base_dir = Path(base_dir)
+    return sorted(int(p.name) for p in base_dir.iterdir() if p.is_dir() and p.name.isdigit())
+
+def build_divisions_from_prev(base_fallback: Dict[int, List[str]], base_dir: str, year: int) -> Dict[int, List[str]]:
+    prev_dir = _prev_year_dir(base_dir, year)
+    if not prev_dir:
+        print("[PROMO] 이전 시즌 폴더 없음 → 기본 분배 사용")
+        return base_fallback
+
+    # 작년 CSV에서 디비전 소속 팀 추출
+    prev_div_teams = _read_prev_div_teams(prev_dir, year)
+    # 위에 교체한 파서: PKL + CSV 결합으로 디비전별 순위 리스트 생성
+    standings = _load_prev_standings(prev_dir, year, prev_div_teams)
+
+    if not standings or any(div not in standings or len(standings[div]) < 10 for div in (1,2,3)):
+        print("[PROMO] 직전 시즌 순위 파싱 실패/불충분 → 작년 CSV 기반만 사용")
+        # CSV로 얻어온 팀 묶음이 있으면 그걸 사용, 없으면 base_fallback
+        return prev_div_teams if all(prev_div_teams.get(d) for d in (1,2,3)) else base_fallback
+
+    # 순위로 승강 대상 팀 결정
+    top2 = standings[2][0]   # 2부 1위 ↑
+    bot1 = standings[1][-1]  # 1부 10위 ↓
+    top3 = standings[3][0]   # 3부 1위 ↑
+    bot2 = standings[2][-1]  # 2부 10위 ↓
+
+    # PO 승자/패자
+    promo = _load_prev_promo_winners(prev_dir, year)  # {(2,1): (winner, loser), (3,2): (winner, loser)}
+
+    # 시작: 작년 디비전 구성
+    cur = {1: list(prev_div_teams.get(1, base_fallback[1])),
+           2: list(prev_div_teams.get(2, base_fallback[2])),
+           3: list(prev_div_teams.get(3, base_fallback[3]))}
+
+    def _move(team: str, src: int, dst: int):
+        if team in cur[src]:
+            cur[src].remove(team)
+        if team not in cur[dst]:
+            cur[dst].append(team)
+
+    # 자동 승강 (1위/10위)
+    _move(top2, 2, 1)
+    _move(bot1, 1, 2)
+    _move(top3, 3, 2)
+    _move(bot2, 2, 3)
+
+    # PO(2↔1)
+    if (2,1) in promo:
+        winner, loser = promo[(2,1)]
+        if winner in cur[2]: _move(winner, 2, 1)
+        if loser  in cur[1]: _move(loser, 1, 2)
+
+    # PO(3↔2)
+    if (3,2) in promo:
+        winner, loser = promo[(3,2)]
+        if winner in cur[3]: _move(winner, 3, 2)
+        if loser  in cur[2]: _move(loser, 2, 3)
+
+    # 수 보정 + 정렬
+    for d in (1,2,3):
+        seen = []
+        for t in cur[d]:
+            if t not in seen: seen.append(t)
+        cur[d] = seen
+        # 부족하면 작년 구성(or fallback)에서 채움
+        filler = prev_div_teams.get(d, base_fallback[d])
+        for t in filler:
+            if len(cur[d]) >= 10: break
+            if t not in cur[d]:
+                cur[d].append(t)
+        cur[d] = cur[d][:10]
+        cur[d] = sorted(cur[d])
+
+    print("[PROMO] 승강 반영 완료:",
+          f"\n - 1부:{cur[1]}\n - 2부:{cur[2]}\n - 3부:{cur[3]}")
+    return cur
+
+KOR_WEEKDAY = {0:"월",1:"화",2:"수",3:"목",4:"금",5:"토",6:"일"}
+
+# ADD ▶ 게이트로 결정된 YEAR 사용
+YEAR: int = get_current_season(BASE_DIR)
+
+
+CONFIG = {
+    "year": max(_list_existing_years(BASE_DIR)),
+#    "divisions": {div: random.sample(teams, len(teams)) for div, teams in base_divs.items()},
+    "divisions": None,
+    # 기본 경기 요일(비여름)
+    "div_weekdays": {
+        1: [2, 5, 6],  # 수·토·일
+        2: [1, 4, 5],  # 화·금·토
+        3: [3, 4, 6],  # 목·금·일
+    },
+    # 여름(6–8월) 경기 요일
+    "div_weekdays_summer": {
+        1: [2, 5],     # 수·토
+        2: [1, 4],     # 화·금
+        3: [3, 6],     # 목·일
+    },
+    # 필수 리그 경기일 템플릿 (예시)
+    "mandatory_date_templates": ["{year}-05-05", "{year}-06-06", "{year}-08-15"],
+    # 휴식주(주차 인덱스)
+    "rest_weeks_by_div": {1: [3, 7, 10, 13, 16, 20],
+                          2: [3, 7, 10, 13, 16, 20],
+                          3: [3, 7, 10, 13, 16, 20]},
+}
+
+ZERO_STAT = dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0)
+
+def RANK_SORT(stat) -> tuple:
+    """
+    순위 정렬 키.
+    - None, dict 아님 → ZERO_STAT로 처리
+    - 누락 키 있으면 0으로 대체
+    """
+    if not isinstance(stat, dict):
+        stat = ZERO_STAT
+    # dict여도 안전하게 get
+    P  = int(stat.get("P",  0) or 0)
+    GD = int(stat.get("GD", 0) or 0)
+    GF = int(stat.get("GF", 0) or 0)
+    return (-P, -GD, -GF)
+
+# ─────────────────────────────────────────────────────────────
+# ▶ divisions를 CSV에서 안전하게 추출 (SHOULD_GENERATE=False 대비)
+# ─────────────────────────────────────────────────────────────
+def _safe_read_csv(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+def _collect_teams_from_league_csv(path: Path) -> set[str]:
+    teams = set()
+    for r in _safe_read_csv(path):
+        a = (r.get("Away") or "").strip()
+        h = (r.get("Home") or "").strip()
+        if a: teams.add(a)
+        if h: teams.add(h)
+    return teams
+
+def extract_divisions_from_current_csvs(base_dir: str, year: int, fallback: Dict[int, List[str]]) -> Dict[int, List[str]]:
+    """
+    /{year}/schedules/league_div{1,2,3}_{year}.csv에서 팀을 모아
+    divisions dict를 만든다. 부족하면 fallback으로 채우고, 정렬해서 반환.
+    """
+    sched_dir = Path(base_dir) / str(year) / "schedules"
+    div_map: Dict[int, List[str]] = {1: [], 2: [], 3: []}
+    for d in (1, 2, 3):
+        p = sched_dir / f"league_div{d}_{year}.csv"
+        teams = sorted(_collect_teams_from_league_csv(p))
+        # 빈 파일/없음 등으로 부족할 수 있으니 fallback로 보강
+        if not teams:
+            teams = []
+        seen = set(teams)
+        for t in fallback.get(d, []):
+            if len(teams) >= 10:
+                break
+            if t not in seen:
+                teams.append(t); seen.add(t)
+        # 혹시 10개를 넘으면 10개로 슬라이스 (이름 기준 정렬 보장)
+        teams = sorted(teams)[:10]
+        # 최종적으로 10개가 안 되면 마지막으로 fallback에서 채워 넣기
+        if len(teams) < 10:
+            for t in sorted(set(fallback.get(d, [])) - set(teams)):
+                teams.append(t)
+                if len(teams) >= 10: break
+        div_map[d] = teams
+    return div_map
+
+def ensure_divisions_when_not_generating(config: dict, base_dir: str, base_fallback: Dict[int, List[str]]) -> dict:
+    """
+    SHOULD_GENERATE가 False일 때 CONFIG['divisions']를 보장.
+    league_div*.csv가 있으면 그걸로, 없으면 fallback 사용.
+    """
+    # 우선 사용할 연도 선정: CONFIG 또는 폴더 최신
+    y_from_config = int(config.get("year")) if "year" in config else None
+    y_latest = max(_list_existing_years(base_dir))
+    y = y_from_config or y_latest
+
+    # league csv 존재 체크
+    sched_dir = Path(base_dir) / str(y) / "schedules"
+    league_csvs_exist = any((sched_dir / f"league_div{d}_{y}.csv").exists() for d in (1, 2, 3))
+
+    if league_csvs_exist:
+        divs = extract_divisions_from_current_csvs(base_dir, y, base_fallback)
+    else:
+        # 현재 연도에 없으면 직전 연도에서라도 추출 시도
+        prev_years = [yy for yy in _list_existing_years(base_dir) if yy < y]
+        divs = None
+        for py in reversed(prev_years):
+            sched_prev = Path(base_dir) / str(py) / "schedules"
+            if all((sched_prev / f"league_div{d}_{py}.csv").exists() for d in (1, 2, 3)):
+                divs = extract_divisions_from_current_csvs(base_dir, py, base_fallback)
+                break
+        if divs is None:
+            # 최후의 수단: fallback
+            divs = {d: sorted(list(base_fallback.get(d, [])))[:10] for d in (1, 2, 3)}
+
+    config["year"] = y
+    config["divisions"] = divs
+    return config
+
+# --- [NEW] 전년도 통합 순위 맵 (D1→1~10, D2→11~20, D3→21~30) ---
+_PREV_RANK_MAP: dict[str, int] | None = None
+
+def _build_prev_rank_map_all(prev_year: int) -> dict[str, int]:
+    """
+    전년도 각 디비전 CSV에서 순위를 만든 뒤,
+    D1: 1~10, D2: 11~20, D3: 21~30 식으로 offset을 더해 통합순위를 부여한다.
+    """
+    rank_map: dict[str, int] = {}
+    base_dir = BASE_DIR  # 상단에 이미 정의되어 있음
+
+    for div_no in (1, 2, 3):
+        prev_csv = Path(base_dir) / str(prev_year) / "schedules" / f"league_div{div_no}_{prev_year}.csv"
+        if not prev_csv.exists():
+            continue
+
+        # 전년도 div별 팀 집합 (이 셀에 이미 존재하는 헬퍼 사용)
+        try:
+            teams = sorted(_collect_teams_from_league_csv(prev_csv))
+        except Exception:
+            teams = []
+
+        # rebuild_league_standings_from_csv는 team2div가 필요하므로 간단 매핑 생성
+        team2div_prev = {t: div_no for t in teams}
+        st = rebuild_league_standings_from_csv([prev_csv], team2div_prev)
+        stats = st.get("teams", {})
+
+        # 디비전내 정렬: 승점↓, 득실차↓, 득점↓, 팀명
+        ordered = sorted(
+            stats.items(),
+            key=lambda kv: (-kv[1].get("P", 0), -kv[1].get("GD", 0), -kv[1].get("GF", 0), kv[0])
+        )
+
+        offset = (div_no - 1) * 10
+        for i, (team, _) in enumerate(ordered, 1):
+            rank_map[team] = offset + i
+
+    return rank_map
+
+def _get_prev_rank_map() -> dict[str, int]:
+    global _PREV_RANK_MAP
+    if _PREV_RANK_MAP is None:
+        try:
+            _PREV_RANK_MAP = _build_prev_rank_map_all(int(YEAR) - 1)
+        except Exception:
+            _PREV_RANK_MAP = {}
+    return _PREV_RANK_MAP
+
+
+# ─────────────────────────────────────────────────────────────
+# ▶ SHOULD_GENERATE 분기 보강
+#    - True: 기존 로직 유지
+#    - False: 현재 CSV 기반으로 divisions 채우고 TEAM2DIV 재계산
+# ─────────────────────────────────────────────────────────────
+# SHOULD_GENERATE를 직접 판정
+def _determine_should_generate(base_dir: Path) -> bool:
+    years = _list_existing_years(base_dir)
+    if not years:
+        return True
+    latest = max(years)
+    sched_dir = Path(base_dir) / str(latest) / "schedules"
+    game_csvs = [sched_dir / f"league_div{d}_{latest}.csv" for d in (1,2,3)]
+    game_csvs.append(sched_dir / f"championship_finals_{latest}.csv")
+    # 미기입 경기 있으면 False(진행중), 없으면 True(새 시즌 생성 가능)
+    any_unplayed = any(_has_unplayed_games(str(p)) for p in game_csvs if p.exists())
+    return not any_unplayed
+
+try:
+    SHOULD_GENERATE = _determine_should_generate(BASE_DIR)
+except Exception:
+    SHOULD_GENERATE = False
+
+# ✅ 여기서 직접 raise / 진행
+if SHOULD_GENERATE:
+    raise RuntimeError(
+        "[ReadyForFunction] 현재 시즌이 완료되어 새 시즌 생성 모드입니다. "
+        "이 셀은 진행 중 시즌(=SHOULD_GENERATE=False)에서만 실행할 수 있습니다."
+    )
+else:
+    print("[INFO] 진행 중 시즌 → CSV 기반 divisions 확정")
+    CONFIG = ensure_divisions_when_not_generating(CONFIG, BASE_DIR, base_divs)
+
+# 이후 코드와 일치하도록 YEAR 및 TEAM2DIV 갱신
+YEAR: int = CONFIG["year"]
+TEAM2DIV: dict[str, int] = {t: d for d, teams in CONFIG["divisions"].items() for t in teams}
+
+
+class Stage(str, Enum):
+    LEAGUE = "리그"
+    LOCAL  = "로컬컵"
+    PROMO  = "승강PO"
+
+class Region(str, Enum):
+    PO    = "PO"
+    GS    = "GS"
+    QF    = "QF"
+    SF    = "SF"
+    FINAL = "Final"
+    THIRD = "3rd"
+
+@dataclass(frozen=True)
+class ScheduleRow:
+    date: dt.date
+    away: str
+    home: str
+    stage: str
+    round: str
+    region: str
+    group: str
+    leg: str
+    tie: str
+    src: str
+    played: bool
+
+KNOCKOUT_REGIONS = {Region.PO, Region.QF, Region.SF, Region.FINAL}
+
+FIELDNAMES = ["No.","년","월","일","요일","Away","Score_A","Score_H","Home",
+              "Round","Stage","Region","Group","Leg","Tie","Note"]
+
+# 시뮬 파라미터
+TICKS          = 1200      # 총 틱
+SLEEP_SEC      = 2.0       # 갱신 간격
+AUTOSAVE_EVERY = 1         # 자동저장 주기(틱)
+
+# 외부 셀에서 제공되는 전역(가정): CONFIG, YEAR_DIR, new_game, step_once, render_games_html
+YEAR: int = CONFIG["year"]
+YEAR_DIR: Path = Path(BASE_DIR) / str(YEAR)  # ← 게이트로 정해진 YEAR로 항상 재지정!
+
+
+SCHEDULE_DIR = YEAR_DIR / "schedules"
+LEAGUE_CSVS: list[Path] = [SCHEDULE_DIR / f"league_div{d}_{YEAR}.csv" for d in (1,2,3)]
+LOCALCUP_REGIONALS = sorted(SCHEDULE_DIR.glob(f"localcup_*_{YEAR}.csv"))
+LOCALCUP_MAIN_PATH = SCHEDULE_DIR / f"localcup_{YEAR}.csv"
+LOCALCUP_CSVS: list[Path] = list(dict.fromkeys(LOCALCUP_REGIONALS + ([LOCALCUP_MAIN_PATH] if LOCALCUP_MAIN_PATH.exists() else [])))
+PROMO_CSVS = sorted(SCHEDULE_DIR.glob(f"promo_*_{YEAR}.csv"))
+CHAMP_CSVS = sorted(SCHEDULE_DIR.glob(f"championship_*_{YEAR}.csv"))
+CSV_PATHS: list[Path] = [p for p in (LEAGUE_CSVS + LOCALCUP_CSVS + PROMO_CSVS + CHAMP_CSVS) if p.exists()]
+
+CHECKPOINT_PATH = YEAR_DIR / "checkpoints" / "sim_checkpoint.pkl"
+STANDINGS_PATH_LEAGUE   = YEAR_DIR / "standings" / f"standings_league_{YEAR}.pkl"
+STANDINGS_PATH_LOCALCUP = YEAR_DIR / "standings" / f"standings_localcup_{YEAR}.pkl"
+
+# 팀→디비전
+TEAM2DIV:dict[str,int] = {t: int(d) for d, teams in CONFIG["divisions"].items() for t in teams}
+
+# 경로 보장
+for p in [CHECKPOINT_PATH, STANDINGS_PATH_LEAGUE, STANDINGS_PATH_LOCALCUP,
+          YEAR_DIR/"batting"/"dummy.txt", YEAR_DIR/"scoreboards"/"dummy.txt"]:
+    Path(p).parent.mkdir(parents=True, exist_ok=True)
+
+# 로깅
+logger = logging.getLogger("sim")
+logger.setLevel(logging.INFO)
+
+# ============================================================
+# 1) 공통 IO 유틸
+# ============================================================
+
+def read_schedule(path: Path) -> list[ScheduleRow]:
+    out = []
+    for row in read_csv_rows(path):
+        s = parse_schedule_row(row, path.name)
+        if s: out.append(s)
+    return out
+
+def parse_schedule_row(row: dict, src_name: str) -> ScheduleRow | None:
+    try:
+        y = int((row.get("년") or "").strip())
+        m = int((row.get("월") or "").strip())
+        d = int((row.get("일") or "").strip())
+        day = dt.date(y,m,d)
+    except:
+        return None
+    sa, sh = (row.get("Score_A") or "").strip(), (row.get("Score_H") or "").strip()
+    return ScheduleRow(
+        date=day,
+        away=(row.get("Away") or "").strip(),
+        home=(row.get("Home") or "").strip(),
+        stage=(row.get("Stage") or "").strip(),
+        round=(row.get("Round") or "").strip(),
+        region=(row.get("Region") or "").strip(),
+        group=(row.get("Group") or "").strip(),
+        leg=(row.get("Leg") or "").strip(),
+        tie=(row.get("Tie") or "").strip(),
+        src=src_name,
+        played=(sa != "" or sh != "")
+    )
+
+def atomic_save_pickle(path: Path, data: Any):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(delete=False, dir=str(path.parent)) as tmp:
+        pickle.dump(data, tmp, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp_path = Path(tmp.name)
+    shutil.move(str(tmp_path), str(path))
+
+def load_pickle(path: Path, default: Any=None) -> Any:
+    if not path.exists(): return default
+    with path.open("rb") as f:
+        return pickle.load(f)
+
+def read_csv_rows(path: Path) -> list[dict]:
+    if not path.exists(): return []
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+def write_csv_rows(path: Path, rows: list[dict], fieldnames: list[str]=FIELDNAMES):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    bak = path.with_suffix(path.suffix + ".bak")
+    if path.exists() and not bak.exists():
+        shutil.copy2(path, bak)
+    with path.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in fieldnames})
+
+def append_sorted_and_reindex_rows(rows_to_add: list[dict], out_csv: Path):
+    existing = read_csv_rows(out_csv)
+    all_rows = existing + rows_to_add
+
+    def _as_int(v):
+        try: return int(str(v).strip())
+        except: return 0
+
+    def _key(x):
+        return (_as_int(x.get("년")), _as_int(x.get("월")), _as_int(x.get("일")),
+                str(x.get("Home","")), str(x.get("Away","")))
+    all_rows.sort(key=_key)
+
+    # 재번호, 요일
+    for i, r in enumerate(all_rows, 1):
+        r["No."] = i
+        y,m,d = _as_int(r.get("년")), _as_int(r.get("월")), _as_int(r.get("일"))
+        try:
+            w = KOR_WEEKDAY[dt.date(y,m,d).weekday()]
+        except:
+            w = r.get("요일","")
+        r["요일"] = w
+    write_csv_rows(out_csv, all_rows)
+
+def csv_all_played(path: Path, *, row_filter: Callable[[dict], bool] | None=None) -> bool:
+    rows = read_csv_rows(path)
+    relevant = [r for r in rows if (row_filter(r) if row_filter else True)]
+    return bool(relevant) and all((r.get("Score_A") or "")!="" and (r.get("Score_H") or "")!="" for r in relevant)
+
+# 요일(옵션: Simulate 셀에서 출력에 사용)
+KOR_WEEKDAY = {0:"월",1:"화",2:"수",3:"목",4:"금",5:"토",6:"일"}
+
+# 결과 표시용 CSS
+CSS = """
+<style>
+/* ===== 데스크탑: 원본 유지 ===== */
+.board { font-family: ui-sans-serif, system-ui, AppleSDGothicNeo, "Apple Color Emoji", "Segoe UI Emoji"; }
+.grid { display: grid; grid-template-columns: repeat(5, minmax(180px, 1fr)); gap: 12px; }
+.card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.06); background: #fff; }
+.header { font-size: 12px;  display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-weight: 700; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #777777; background: #e5e7eb; }
+.top { background: #e0f2fe; }
+.bot { background: #fee2e2; }
+.over { background: #dcfce7; }
+.score { font-size: 18px; font-weight: 800; color: #777777; margin-bottom: 6px; }
+.row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.meta { font-size: 13px; color: #374151; font-weight: 500; }
+.lastact { font-size: 12px; color: #777777; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outs { font-size: 13px; color: #b91c1c; font-weight: 600; }
+.outdot { display: inline-block; width: 8px; height: 8px; background: #ef4444; border-radius: 999px; margin-right: 3px; }
+.diamond { width: 68px; height: 68px; position: relative; margin: 6px auto; }
+.base { width: 14px; height: 14px; transform: rotate(45deg); border: 1.5px solid #333; position: absolute; background: #fff; }
+.base.on { background: #10b981; }
+.b1 { left: 42px; top: 42px; }
+.b2 { left: 26px; top: 26px; }
+.b3 { left: 10px; top: 42px; }
+.home { left: 26px; top: 58px; border-color: #999; }
+.teams-row { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; margin: 8px 0 10px; }
+.team-block { display: flex; flex-direction: column; justify-content: center; }
+.teams-row .team-block:first-child { text-align: left; align-items: flex-start; }
+.teams-row .team-block:last-child { text-align: right; align-items: flex-end; }
+.board .teams-row .team-name { display: inline-flex; align-items: center; white-space: nowrap; line-height: 1.15; letter-spacing: 0; font-size: 16px; font-weight: 800; color: #111827 !important; }
+.team-rank { font-size: 12px; line-height: 1.2; font-weight: 700; color: #374151; margin-top: 2px; }
+.score-center { font-size: 18px; font-weight: 800; color: #111827; white-space: nowrap; align-self: center; }
+
+/* ===== 모바일(<=960px) 통합 패치 ===== */
+@media (max-width: 960px) {
+
+  /* 0) 마지막 플레이 감춤 */
+  .lastact { display: none !important; }
+
+  /* 1) 카드: 다이아 공간 확보 + 최소 높이로 겹침 방지 */
+  .card {
+    position: relative;
+    padding: 8px 48px 8px 8px;   /* 우측 48px로 다이아/뱃지 영역 확보 */
+    border-radius: 10px;
+    min-height: 64px;
+  }
+
+  /* 2) 헤더: 가독성 상향 */
+  .header {
+    position: relative;
+    font-size: 10px;             /* 가독성 보정 */
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;  /* [Game 1] | [badge] */
+    align-items: center;
+  }
+
+  /* 3) 뱃지: flex 아이템(겹침 방지) + 우측 패딩 활용 */
+  .header .badge {
+    position: relative;          /* absolute 금지 */
+    z-index: 2;                  /* 필요 시 다이아 위로 */
+    font-size: 9px;
+    padding: 1px 6px;
+    max-width: 96px;             /* 너무 길면 말줄임 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    /* 우측 패딩(48px) 영역까지 확장 */
+    margin-left: 8px;            /* 제목과 간격 */
+    margin-right: -32px;         /* 오른쪽으로 조금 더 밀어넣기 */
+  }
+
+  /* 4) 팀명/랭크: 오버플로우 대비 */
+  .board .teams-row .team-name {
+    font-size: 12px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;          /* 한 줄 말줄임 */
+  }
+  /* 두 줄 허용하려면 위 2줄 대신 아래 3줄 사용
+     white-space: normal;
+     display: -webkit-box;
+     -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  */
+  .team-rank { font-size: 10px; margin-top: 1px; color: #4b5563; }
+
+  /* 5) 팀/점수 레이아웃: 2행(원정/홈) + 점수 분리 */
+  .teams-row {
+    display: grid;
+    grid-template-columns: 1fr auto;   /* 팀명 | 점수 */
+    grid-template-rows: auto auto;     /* 원정, 홈 */
+    gap: 3px 8px;
+    margin: 3px 0 5px;
+  }
+  .teams-row .team-block:first-child { grid-column: 1; grid-row: 1; align-items: flex-start; text-align: left; }
+  .teams-row .team-block:last-child  { grid-column: 1; grid-row: 2; align-items: flex-start; text-align: left; }
+
+  /* 6) 점수: split 스팬 유무와 무관하게 안정 정렬 */
+  .score-center {
+    grid-column: 2; grid-row: 1 / span 2;
+    display: grid;
+    grid-auto-rows: min-content;
+    align-content: center;
+    justify-items: end;
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+    white-space: nowrap;
+  }
+  .score-center .score-sep  { display: none; }
+  .score-center .score-away { grid-row: 1; }
+  .score-center .score-home { grid-row: 2; }
+
+  /* 7) 주자 다이아: 우상단 고정(배지와 레이어 분리) */
+  .diamond {
+    position: absolute;
+    right: 6px;
+    top: 32px;                    /* 28 → 32: 과밀 방지 */
+    width: 26px; height: 26px; margin: 0;
+    z-index: 1;                   /* 배지 아래 */
+  }
+  .base { width: 5.5px; height: 5.5px; border-width: 1px; }
+  .b1 { left: 16px; top: 16px; } .b2 { left: 10px; top: 10px; }
+  .b3 { left: 4px;  top: 16px; } .home { left: 10px; top: 22px; }
+
+  /* 8) 하단 상태줄: 가독성 */
+  .row { margin-top: 3px; font-size: 11px; }
+  .meta, .outs { font-size: 11px; color: #374151; }
+  .outdot { width: 6px; height: 6px; margin-right: 2px; }
+}
+
+/* ===== 모바일 그리드: 열 수를 구간별로 고정(남는 공간은 1fr로 확장) ===== */
+
+/* 801–960px: 5열 (열이 항상 행 너비를 꽉 채움 = 카드가 넓어짐) */
+@media (max-width: 960px) and (min-width: 801px) {
+  .grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+}
+
+/* 641–800px: 4열 */
+@media (max-width: 800px) and (min-width: 641px) {
+  .grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+}
+
+/* 481–640px: 3열 */
+@media (max-width: 640px) and (min-width: 481px) {
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+}
+
+/* ≤480px: 2열 */
+@media (max-width: 480px) {
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+}
+
+.prev-leg-away,
+.prev-leg-home {
+  display: none; /* 데스크탑에서는 숨김 */
+  font-size: 11px;
+  color: #6b7280;
+  margin-right: 4px;
+}
+
+@media (max-width: 960px) {
+  /* 모바일에서는 데스크탑용 지난 경기 스코어 감춤 */
+  .prev-leg-desktop { display: none !important; }
+  .prev-leg-away {
+    display: inline-block;
+    grid-row: 1;
+    justify-self: start;
+  }
+  .prev-leg-home {
+    display: inline-block;
+    grid-row: 2;
+    justify-self: start;
+  }
+}
+
+</style>
+"""
+
+
+# 이벤트 테이블
+action = {
+    12:'H1',13:'H1',14:'H2',15:'H2',16:'H2',17:'H3',18:'H3',19:'H3',
+    21:'K',23:'K',24:'2B1',25:'K',26:'2B1',27:'K',28:'2B2',29:'K',
+    31:'GO',32:'GO',34:'GO',35:'GO',36:'GO',37:'DO',38:'DO',39:'DO',
+    41:'FO',42:'FO',43:'FO',45:'SF1',46:'SF1',47:'SF2',48:'SF2',49:'TO',
+    51:'B',52:'B',53:'B',54:'HP',56:'SB',57:'SB',58:'SB',59:'SB',
+    61:'H1',62:'H2',63:'H2',64:'H3',65:'H3',67:'2B1',68:'2B2',69:'HR',
+    71:'K',72:'K',73:'K',74:'K',75:'K',76:'K',78:'K',79:'K',
+    81:'FO',82:'FO',83:'FO',84:'SF1',85:'SF1',86:'SF2',87:'SF2',89:'HR',
+    91:'GO',92:'GO',93:'GO',94:'GO',95:'DO',96:'DO',97:'E',98:'3B'
+}
+
+def _iter_all_played_games(up_to_date: dt.date | None = None):
+    for p in CSV_PATHS:
+        for row in read_csv_rows(p):
+            sa = (row.get("Score_A") or "").strip()
+            sh = (row.get("Score_H") or "").strip()
+            if not (sa and sh): continue
+            try:
+                y = int(row.get("년", 0)); m = int(row.get("월", 0)); d = int(row.get("일", 0))
+                day = dt.date(y,m,d)
+            except:
+                continue
+            if up_to_date and day > up_to_date: continue
+            yield dict(
+                date=day,
+                away=(row.get("Away") or "").strip(),
+                home=(row.get("Home") or "").strip(),
+                sa=int(sa), sh=int(sh),
+                stage=(row.get("Stage") or "").strip(),
+                region=(row.get("Region") or "").strip(),
+                group=(row.get("Group") or "").strip(),
+                year=y
+            )
+
+def _team_name_with_rank_html(name: str, label: str) -> str:
+    n = html.escape(name)
+    lbl = (label or "").strip()
+    rank_html = f'<div class="team-rank">{html.escape(lbl)}</div>' if lbl else ""
+    return (
+        f'<div class="team-block">'
+        f'  <div class="team-name">{n}</div>'
+        f'  {rank_html}'
+        f'</div>'
+    )
+
+def _h2h_record(team_a: str, team_b: str, up_to_date: dt.date | None = None, season_year: int | None = None):
+    W=D=L=GF=GA=0
+    for g in _iter_all_played_games(up_to_date):
+        if season_year is not None and g["year"] != season_year: continue
+        if {g["away"], g["home"]} != {team_a, team_b}: continue
+        ta = g["sa"] if g["away"]==team_a else g["sh"]
+        tb = g["sh"] if g["away"]==team_a else g["sa"]
+        GF += ta; GA += tb
+        if ta>tb: W+=1
+        elif ta<tb: L+=1
+        else: D+=1
+    return W,D,L,GF,GA
+
+def _recent_form(team: str, up_to_date: dt.date, k: int = 5):
+    games = []
+    for g in _iter_all_played_games(up_to_date):
+        if team != g["away"] and team != g["home"]:
+            continue
+        gf, ga = (g["sa"], g["sh"]) if team==g["away"] else (g["sh"], g["sa"])
+        res = 'W' if gf>ga else ('L' if gf<ga else 'D')
+        games.append((g["date"], res, gf, ga))
+    games.sort(key=lambda x: x[0], reverse=True)
+    sel = games[:k]
+    form = [r for _, r,_,_ in sel]
+    gf_sum = sum(gf for _,_,gf,_ in sel)
+    ga_sum = sum(ga for _,_,_,ga in sel)
+    return form, gf_sum, ga_sum
+
+def _h2h_record_league_only(team_a, team_b, *, up_to_date=None, season_year=None):
+    W = D = L = GF = GA = 0
+    ta = (team_a or '').strip()
+    tb = (team_b or '').strip()
+    sy = int(season_year) if season_year is not None else None
+
+    for g in _iter_all_played_games(up_to_date):
+        # 1) 리그만 필터
+        if (g.get('stage') or '').strip() != '리그':
+            continue
+        # 2) 시즌 한정
+        if sy is not None and int(g.get('year', 0)) != sy:
+            continue
+        # 3) 팀 매치
+        if {g['away'], g['home']} != {ta, tb}:
+            continue
+
+        # 4) team_a 관점으로 득실/승무패
+        if g['away'] == ta:
+            gf, ga = g['sa'], g['sh']
+        else:
+            gf, ga = g['sh'], g['sa']
+        GF += gf; GA += ga
+        if gf > ga: W += 1
+        elif gf < ga: L += 1
+        else: D += 1
+
+    return W, D, L, GF, GA
+
+def _league_rank_map(league_st: dict) -> dict[str, tuple[int,int]]:
+    div_to_teams = defaultdict(list)
+    for team, d in TEAM2DIV.items():
+        div_to_teams[d].append(team)
+    rankmap = {}
+    for div in sorted(div_to_teams.keys()):
+        prev_map = _get_prev_rank_map()
+        teams = sorted(
+            div_to_teams[div],
+            key=lambda t: (
+                *RANK_SORT(league_st["teams"].get(t, ZERO_STAT)),
+                prev_map.get(t, 9999),  # 💡 동률이면 전년도 통합순위
+                t                        # 마지막 안전 고정
+            )
+        )
+
+        for i, t in enumerate(teams, 1):
+            rankmap[t] = (div, i)
+    return rankmap
+
+def _save_pickle_atomic(path, data):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(p.name + ".tmp")  # ← 문자열 덧셈 대신 안전한 Path 조립
+    with tmp.open("wb") as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, p)  # atomic한 교체
+
+def _local_rank_map(local_st: dict) -> dict[tuple[str,str], dict[str,int]]:
+    out = {}
+    for region, groups in local_st.get("regions", {}).items():
+        for gname, table in groups.items():
+            prev_map = _get_prev_rank_map()
+            items = sorted(
+                table.items(),
+                key=lambda kv: (
+                    *RANK_SORT(kv[1]),
+                    prev_map.get(kv[0], 9999),  # 💡 전년도 통합순위
+                    kv[0]
+                )
+            )
+            out[(region, gname or "A")] = {team:i for i,(team,_) in enumerate(items,1)}
+    return out
+
+# === [공유 유틸/재집계 셀] ===
+import os, csv, pickle, datetime
+from pathlib import Path
+
+def load_earliest_unplayed_group() -> tuple[dt.date, list[ScheduleRow]]:
+    all_rows: list[ScheduleRow] = []
+    for p in CSV_PATHS:
+        all_rows.extend(read_schedule(p))
+    unplayed = [r for r in all_rows if not r.played]
+    if not unplayed:
+        raise RuntimeError("모든 경기가 이미 열린 것으로 보입니다. (CSV의 Score_A/Score_H가 채워져 있음)")
+    earliest = min(r.date for r in unplayed)
+    return earliest, [r for r in unplayed if r.date == earliest]
+
+def _to_int(x, default=0):
+    try:
+        return int(str(x).strip())
+    except Exception:
+        return default
+
+def _load_pickle(path):
+    p = Path(path)
+    if not p.exists():
+        return None
+    with p.open("rb") as f:
+        return pickle.load(f)
+
+def _save_pickle_atomic(path, data):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(p.name + ".tmp")
+    with tmp.open("wb") as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, p)
+
+# 리그: CSV → 재집계
+def rebuild_league_standings_from_csv(league_csv_paths, team2div):
+    teams_stats = {t: dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0) for t in team2div.keys()}
+    played_ids = set()
+    for path in league_csv_paths:
+        path = Path(path)
+        if not path.exists(): continue
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            r = csv.DictReader(f)
+            for row in r:
+                sa = (row.get("Score_A") or "").strip()
+                sh = (row.get("Score_H") or "").strip()
+                if sa=="" or sh=="": continue
+                away = (row.get("Away") or "").strip()
+                home = (row.get("Home") or "").strip()
+                y = _to_int(row.get("년")); m = _to_int(row.get("월")); d = _to_int(row.get("일"))
+                gid = (f"{y:04d}-{m:02d}-{d:02d}", away, home)
+                if gid in played_ids: continue
+
+                sa_i, sh_i = _to_int(sa), _to_int(sh)
+                for t in (away, home):
+                    if t not in teams_stats:
+                        teams_stats[t] = dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0)
+
+                A, H = teams_stats[away], teams_stats[home]
+                A["GF"] += sa_i; A["GA"] += sh_i; A["GP"] += 1
+                H["GF"] += sh_i; H["GA"] += sa_i; H["GP"] += 1
+
+                if sa_i > sh_i:   A["W"] += 1; H["L"] += 1; A["P"] += 3
+                elif sa_i < sh_i: H["W"] += 1; A["L"] += 1; H["P"] += 3
+                else:             A["D"] += 1; H["D"] += 1; A["P"] += 1; H["P"] += 1
+
+                A["GD"] = A["GF"] - A["GA"]
+                H["GD"] = H["GF"] - H["GA"]
+                played_ids.add(gid)
+    return {"teams": teams_stats, "played_ids": played_ids}
+
+# KO 라운드(토너먼트) 제외 집합 — 반드시 문자열로!
+LOCALCUP_KO_SET = {"PO", "QF", "SF", "3rd", "Final"}
+
+def rebuild_localcup_standings_from_csv_no_save(localcup_csv_paths):
+    """
+    로컬컵 '지역예선/조별예선(GS)'만 집계하여 standings 스냅샷(dict) 생성.
+    - Stage == "로컬컵"만 포함
+    - Round == "PO" 제외
+    - Region in {"PO","QF","SF","3rd","Final"} 제외
+    - Group 공란/누락 → "A" 강제
+    - regional CSV 와 통합 CSV 에 중복 기록이 있어도 played_ids 로 한 번만 반영
+    반환: {"regions": {region: {group: {team: stat}}}, "played_ids": set(...)}
+    """
+    regions: dict[str, dict[str, dict[str, dict]]] = {}
+    played_ids: set[tuple[str,str,str,str,str]] = set()  # (date_iso, away, home, region, group)
+
+    def _to_int(x, default=0):
+        try:
+            return int(str(x).strip())
+        except Exception:
+            return default
+
+    for path in localcup_csv_paths:
+        path = Path(path)
+        if not path.exists():
+            continue
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            r = csv.DictReader(f)
+            for row in r:
+                stage  = (row.get("Stage")  or "").strip()
+                region = (row.get("Region") or "").strip()
+                round_ = (row.get("Round")  or "").strip()
+                group  = (row.get("Group")  or "").strip() or "A"   # ✅ 기본값 A
+                away   = (row.get("Away")   or "").strip()
+                home   = (row.get("Home")   or "").strip()
+                sa     = (row.get("Score_A") or "").strip()
+                sh     = (row.get("Score_H") or "").strip()
+
+                # 필터: 로컬컵만, KO/PO 제외, 미개최 제외
+                if stage != "로컬컵":
+                    continue
+                if round_ == "PO":
+                    continue                                    # ✅ 라운드 PO 제외
+                if region in LOCALCUP_KO_SET:
+                    continue                                    # ✅ 토너먼트(PO/QF/SF/3rd/Final) 제외
+                if sa == "" or sh == "":
+                    continue
+
+                # 중복 차단 키 (날짜+팀+지역+조)
+                y = _to_int(row.get("년")); m = _to_int(row.get("월")); d = _to_int(row.get("일"))
+                date_iso = f"{y:04d}-{m:02d}-{d:02d}"
+                key = (date_iso, away, home, region, group)
+                if key in played_ids:
+                    continue
+                played_ids.add(key)
+
+                sa_i, sh_i = _to_int(sa), _to_int(sh)
+
+                # 팀별 누적
+                bucket = regions.setdefault(region, {}).setdefault(group, {})
+                def _acc(team, gf, ga, w, d, l):
+                    x = bucket.setdefault(team, dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0))
+                    x["GF"] += gf; x["GA"] += ga; x["GP"] += 1
+                    x["W"]  += w;  x["D"]  += d;  x["L"]  += l
+                    x["P"]  += 3*w + d
+                    x["GD"]  = x["GF"] - x["GA"]
+
+                if   sa_i > sh_i: _acc(away, sa_i, sh_i, 1,0,0); _acc(home, sh_i, sa_i, 0,0,1)
+                elif sa_i < sh_i: _acc(away, sa_i, sh_i, 0,0,1); _acc(home, sh_i, sa_i, 1,0,0)
+                else:             _acc(away, sa_i, sh_i, 0,1,0); _acc(home, sh_i, sa_i, 0,1,0)
+
+    return {"regions": regions, "played_ids": played_ids}
+
+
+# pkl 스냅샷 생성기(=검증 셀 방식과 동일한 저장 경로/형식)
+def rebuild_and_save_league_pkl(LEAGUE_CSVS, TEAM2DIV, STANDINGS_PATH_LEAGUE):
+    snap = rebuild_league_standings_from_csv(LEAGUE_CSVS, TEAM2DIV)
+    _save_pickle_atomic(STANDINGS_PATH_LEAGUE, snap)
+    return snap
+
+def rebuild_and_save_localcup_pkl(LOCALCUP_CSVS, STANDINGS_PATH_LOCALCUP):
+    snap = rebuild_localcup_standings_from_csv_no_save(LOCALCUP_CSVS)
+    _save_pickle_atomic(STANDINGS_PATH_LOCALCUP, snap)
+    return snap
+
+
+def _label_for_team(stage: str, region: str, group: str, team: str,
+                    league_rank: dict, local_rank: dict,
+                    league_st: dict, local_st: dict) -> str:
+    if stage == Stage.LEAGUE:
+        if team in league_rank:
+            div, rk = league_rank[team]
+            pts = _points_for_label(stage, region, group, team, league_st, local_st)
+            return f"DIV{div} #{rk}" + (f" {pts}" if pts else "")
+        return ""
+    r, g = (region or "").strip(), (group or "A").strip()
+    key = (r, g)
+    if key in local_rank and team in local_rank[key]:
+        rk = local_rank[key][team]
+        base = f"GS-{g} #{rk}" if r == Region.GS else f"{r}{('-'+g) if g and r and g not in ['A',''] else ''} #{rk}"
+        pts = _points_for_label(stage, r, g, team, league_st, local_st)
+        return base + (f" {pts}" if pts else "")
+    return ""
+
+# === D-1) 프리뷰 HTML 렌더러 ===
+def render_next_matchday_preview_html(next_date: datetime.date, next_rows: list,
+                                      league_standings: dict, local_standings: dict):
+    # 랭크맵 준비
+    lrank = _league_rank_map(league_standings) if league_standings else {}
+    crank = _local_rank_map(local_standings)   if local_standings else {}
+
+    # ✅ FIX: 새 시그니처에 맞춰 standings 2개를 함께 전달 (+ group 기본값 'A')
+    def _team_rank_label(stage, region, group, team):
+        return _label_for_team(
+            stage or "", region or "", (group or "A"), team,
+            lrank, crank, league_standings, local_standings
+        )
+
+    blocks = []
+    header = (
+        '<div style="font-family: ui-sans-serif, system-ui, AppleSDGothicNeo; margin-top:18px;">'
+        '<style>.team-rank{font-size:11px;line-height:1.1;opacity:.8;font-weight:700}</style>'
+        f'<div style="font-weight:900;font-size:18px;margin-bottom:10px;">👀 다음 경기 프리뷰 — {next_date.month}/{next_date.day}({KOR_WEEKDAY[next_date.weekday()]})</div>'
+    )
+    blocks.append(header)
+
+    for r in sorted(next_rows, key=lambda x: (x["stage"], x["region"], x["group"], x["home"], x["away"])):
+        away, home = r["away"], r["home"]
+        stage, region, group = r.get("stage") or "", r.get("region") or "", r.get("group") or ""
+        lab_home = _team_rank_label(stage, region, group, home)
+        lab_away = _team_rank_label(stage, region, group, away)
+
+        # 전적 계산
+        W_a, D_a, L_a, GF_a, GA_a = _h2h_record(away, home, up_to_date=next_date)
+        W_a_season, D_a_season, L_a_season, *_ = _h2h_record_league_only(
+            away, home, up_to_date=next_date, season_year=YEAR
+        )
+
+        form_a, gf5_a, ga5_a = _recent_form(away, next_date, k=5)
+        form_h, gf5_h, ga5_h = _recent_form(home, next_date, k=5)
+
+        # ✅ 가독성: 흰 배경 + 진한 글자
+        html_block = f"""
+        <div style="display:flex;gap:16px;align-items:flex-start;margin:10px 0;padding:12px;background:#bbb;border:1px solid #e5e7eb;border-radius:12px;color:#111;">
+          <div style="min-width:220px;">
+            <div style="font-weight:800;color:#0f172a;">{html.escape(stage or '대회 미지정')} {html.escape(region or '')}{' '+html.escape(group) if group else ''}</div>
+            <div style="font-size:16px;margin-top:4px;"><b>{html.escape(away)}</b> @ <b>{html.escape(home)}</b></div>
+          </div>
+          <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="padding:8px;background:#ddd;border:1px solid #e5e7eb;border-radius:10px;color:#111;">
+              <div style="font-weight:700;margin-bottom:4px;color:#0f172a;">현재 순위</div>
+              <div>{html.escape(away)} — <span class="team-rank">{html.escape(lab_away)}</span></div>
+              <div>{html.escape(home)} — <span class="team-rank">{html.escape(lab_home)}</span></div>
+            </div>
+            <div style="padding:8px;background:#ddd;border:1px solid #e5e7eb;border-radius:10px;color:#111;">
+              <div style="font-weight:700;margin-bottom:4px;color:#0f172a;">상대전적</div>
+              <div>통산: {html.escape(away)} {W_a}-{D_a}-{L_a} {html.escape(home)}</div>
+              <div>시즌: {html.escape(away)} {W_a_season}-{D_a_season}-{L_a_season} {html.escape(home)}</div>
+            </div>
+            <div style="padding:8px;background:#ddd;border:1px solid #e5e7eb;border-radius:10px;color:#111;">
+              <div style="font-weight:700;margin-bottom:4px;color:#0f172a;">최근 5경기 (원정)</div>
+              <div>폼: {' '.join(form_a) if form_a else '-'}</div>
+              <div>득실: {gf5_a}:{ga5_a}</div>
+            </div>
+            <div style="padding:8px;background:#ddd;border:1px solid #e5e7eb;border-radius:10px;color:#111;">
+              <div style="font-weight:700;margin-bottom:4px;color:#0f172a;">최근 5경기 (홈)</div>
+              <div>폼: {' '.join(form_h) if form_h else '-'}</div>
+              <div>득실: {gf5_h}:{ga5_h}</div>
+            </div>
+          </div>
+        </div>
+        """
+        blocks.append(html_block)
+
+    blocks.append("</div>")
+    return ''.join(blocks)
+
+
+def GetNumber():
+    while True:
+        number = random.randint(12,98)
+        if (number % 10)*(number % 11) != 0:
+            return number
+
+# ----- 시뮬레이션 핵심(룰 엔진) -----
+def DoAction(act, out, base, score, inning, top):
+    if out == 1 or base[0] + base[1] != 2:
+        if act == 'TO':
+            act = 'DO'
+    if out == 2 or base[0] == 0:
+        if act in ['DO','TO']:
+            act = 'GO'
+    if base == [0,0,0,0] or out == 2:
+        if act == 'SB':
+            act = 'GO'
+    if base[1]+base[2] == 0 or out == 2:
+        if act[:2] == 'SF':
+            act = 'FO'
+    if base[2] == 0 or out == 2:
+        if act == 'SF1':
+            act = 'FO'
+
+    on1, on2, on3, rb = base
+
+    def adv1():
+        nonlocal on1,on2,on3,rb
+        rb += on3
+        on3, on2, on1 = on2, on1, 1
+
+    def force_walk():
+        nonlocal on1,on2,on3,rb
+        if on1 and on2 and on3:
+            rb += 1
+        if on2 and on1: on3 = 1
+        if on1: on2 = 1
+        on1 = 1
+
+    if act in ['H1','E']:
+        adv1()
+    elif act == 'H2':
+        rb += (on3 + on2); on3 = 0; on2 = on1; on1 = 1
+    elif act == 'H3':
+        rb += (on3 + on2); on3 = on1; on2 = 0; on1 = 1
+    elif act == '2B1':
+        rb += (on3 + on2); on3 = on1; on2 = 1; on1 = 0
+    elif act == '2B2':
+        rb += (on3 + on2 + on1); on3, on2, on1 = 0, 1, 0
+    elif act == '3B':
+        rb += (on3 + on2 + on1); on3, on2, on1 = 1, 0, 0
+    elif act == 'HR':
+        rb += (on3 + on2 + on1 + 1); on1, on2, on3 = 0, 0, 0
+    elif act in ['B','HP']:
+        force_walk()
+    elif act == 'K':
+        out += 1
+    elif act == 'FO':
+        out += 1
+    elif act == 'GO':
+        forced1 = (on1 == 1)
+        forced2 = (on2 == 1 and on1 == 1)
+        forced3 = (on3 == 1 and on2 == 1 and on1 == 1)
+        if forced3: lead_out = '3'
+        elif forced2: lead_out = '2'
+        elif forced1: lead_out = '1'
+        else: lead_out = 'B'
+        new_on1 = 1
+        new_on2 = on1
+        new_on3 = on2
+        rb += on3
+        if lead_out == '3':
+            rb -= 1
+        elif lead_out == '2':
+            new_on3 = max(new_on3 - 1, 0)
+        elif lead_out == '1':
+            new_on2 = max(new_on2 - 1, 0)
+        elif lead_out == 'B':
+            new_on1 = 0
+        out += 1
+        on1, on2, on3 = new_on1, new_on2, new_on3
+    elif act == 'DO':
+        out = min(out + 2, 3); rb += on3; on3 = on2; on2 = 0; on1 = 0
+    elif act == 'TO':
+        out = 3; on1,on2,on3 = 0,0,0
+    elif act == 'SB':
+        out += 1; rb += on3; on3, on2, on1 = on2, on1, 0
+    elif act == 'SF1':
+        out += 1
+        if on3: rb += 1; on3 = 0
+    elif act == 'SF2':
+        out += 1
+        if on3: rb += 1; on3 = 0
+        if on2: on3, on2 = 1, 0
+    else:
+        raise KeyError(act)
+
+    if out >= 3:
+        rb = 0
+
+    return act, out, [on1,on2,on3,rb], score, inning, top
+
+# ----- 경기 오브젝트와 한 타석 진행 -----
+def new_lineup():
+    return list(range(1,10))
+
+def blank_batter_stats():
+    return [dict(PA=0,H=0,_2B=0,_3B=0,HR=0,BB=0,HBP=0,K=0,OUT=0) for _ in range(9)]
+
+def record_batter(stats, batter_idx, act):
+    s = stats[batter_idx]
+    s['PA'] += 1
+    if act in ['H1','H2','H3']: s['H'] += 1
+    if act in ['2B1','2B2']: s['_2B'] += 1
+    if act == '3B': s['_3B'] += 1
+    if act == 'HR': s['HR']  += 1
+    if act == 'B':  s['BB']  += 1
+    if act == 'HP': s['HBP'] += 1
+    if act in ['K','FO','GO','DO','TO','SB','SF1','SF2','E']: s['OUT'] += 1
+
+def new_game(away, home):
+    return {
+        "away": away, "home": home,
+        "score": [0,0],
+        "inning": 1,
+        "top": '초',
+        "out": 0,
+        "base": [0,0,0,0],   # on1,on2,on3,run_buffer
+        "is_over": False,
+        "last_act": None,
+        "away_inn": [0]*12,
+        "home_inn": [0]*12,
+        "half_start_score": 0,
+        "lineup": {"away": new_lineup(), "home": new_lineup()},
+        "next_batter": {"away": 0, "home": 0},
+        "batter_stats": {"away": blank_batter_stats(), "home": blank_batter_stats()},
+        "log": []
+    }
+
+# =====================================================================
+# ✅ step_once를 요청 사양대로 보강:
+#   - prev_leg_diff가 주어진(2차전/특정 대회) 경우, 9회(이상) '말' 종료에 "동점"은 절대 종료 불가
+#     (즉, 이번 경기 자체가 동점이면 계속 연장)
+# =====================================================================
+
+def step_once(g, prev_leg_diff: int | None = None):
+    """
+    prev_leg_diff:
+      - None  : 홈앤드어웨이 연장 모드 아님(기본 규칙, 무승부 허용)
+      - 정수  : 지난 경기 최종 점수차(이번 경기 '홈-원정' 기준).
+                이번 경기는 '반대 점수차'(-prev_leg_diff)로는 종료 금지(=합산 동률 → 무제한 연장).
+
+    종료 규칙 요약
+      [기본 모드(prev_leg_diff=None)]
+        - 9회 '초' 종료 직후 홈이 리드면 즉시 종료
+        - 9회(이상) '말'에서 홈이 앞서는 순간 즉시 종료(워크오프)
+        - 9회(이상) '말' 종료 시점: 동점/원정 리드면 종료
+      [홈앤드어웨이/특정 대회(prev_leg_diff=정수)]
+        - forbidden_gd = -prev_leg_diff (이 점수차로는 어떤 시점에도 종료 금지)
+        - 워크오프(말, 홈이 앞서는 순간): 시리즈 합산이 홈 우위(sd>0)이고 forbidden이 아닐 때만 즉시 종료
+        - 9회 '초' 종료 직후: sd>0 이고 forbidden이 아닐 때만 종료
+        - 9회(이상) '말' 종료 시점: 원정 리드만 종료 허용(동점은 절대 종료 금지), 단 forbidden이면 금지 → 연장
+    """
+    # ---------- helpers ----------
+    def _gd(h, a):      # 현재 경기 점수차(홈-원정)
+        return h - a
+
+    def _sd(h, a):      # 시리즈 합산 점수차 = 지난 경기 차 + 현재 경기 차
+        return (prev_leg_diff or 0) + _gd(h, a)
+
+    def _forbidden_gd():
+        return -prev_leg_diff if prev_leg_diff is not None else None
+
+    def _is_forbidden(h, a):
+        fg = _forbidden_gd()
+        return (fg is not None) and (_gd(h, a) == fg)
+
+    # 이미 종료면 그대로 반환
+    if g["is_over"]:
+        return g
+
+    out, base, score, inning, top = g["out"], g["base"], g["score"], g["inning"], g["top"]
+    side = 0 if top == '초' else 1
+    team_key = "away" if side == 0 else "home"
+
+    # 하프 이닝 진입 마커
+    if out == 0 and base == [0,0,0,0] and (g.get("_in_half") is None or g["_in_half"] is False):
+        g["half_start_score"] = score[side]
+        g["_in_half"] = True
+
+    # 한 타석 수행
+    idx = g["next_batter"][team_key]
+    batter_no = g["lineup"][team_key][idx]
+    num = GetNumber()
+    act_label = action[num]
+    act, out, base, score, inning, top = DoAction(act_label, out, base, score, inning, top)
+
+    record_batter(g["batter_stats"][team_key], idx, act)
+    g["log"].append((inning, g["top"], team_key, batter_no, act))
+    g["last_act"] = f"{team_key[:1].upper()}{batter_no} - {act}"
+    g["next_batter"][team_key] = (idx + 1) % 9
+
+    # 득점 반영
+    if base[3] > 0:
+        score[side] += base[3]
+        base[3] = 0
+
+    a, h = score[0], score[1]
+
+    # ── (말) 홈이 앞서나가는 순간: 워크오프
+    if inning >= 9 and top == '말' and h > a:
+        if prev_leg_diff is None:
+            g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+            return g
+        else:
+            if (_sd(h, a) > 0) and (not _is_forbidden(h, a)):
+                g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                return g
+        # 금지 점수차면 즉시 종료 없이 계속 진행
+
+        # ── 하프 이닝 종료 처리
+    if out == 3:
+        delta = score[side] - g["half_start_score"]
+        target_inn = min(inning, 12) - 1  # 기록 배열 길이 보호(12회 초과는 12칸에 누적)
+        if side == 0: g["away_inn"][target_inn] += delta
+        else:         g["home_inn"][target_inn] += delta
+
+        prev_half = g["top"]  # 방금 끝난 하프 ('초' or '말')
+
+        if inning >= 9:
+            if prev_half == '초':
+                # --- 방금 '초'가 끝났음 (top half 종료) ---
+                if inning == 9:
+                    # 9회초 끝: 홈이 앞서면 바텀 생략하고 종료
+                    if h > a:
+                        if prev_leg_diff is None:
+                            g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                            return g
+                        else:
+                            if (_sd(h, a) > 0) and (not _is_forbidden(h, a)):
+                                g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                                return g
+                # 10회초 이상 끝난 경우는 절대 여기서 끝내지 않음 → 바텀 진행
+            else:
+                # --- 방금 '말'이 끝났음 (bottom half 종료) ---
+                if prev_leg_diff is None:
+                    # ✅ 기본 모드: 9회 이상 '말' 종료 시 무조건 종료(동점=무승부)
+                    g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                    return g
+                else:
+                    # 시리즈/특수 모드:
+                    # - 홈 리드로 말 종료: 합산(sd>0)이고 forbidden 아니면 종료(워크오프 안전망)
+                    if (h > a) and (_sd(h, a) > 0) and (not _is_forbidden(h, a)):
+                        g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                        return g
+                    # - 원정 리드로 말 종료: forbidden 아니면 종료
+                    if (h < a) and (not _is_forbidden(h, a)):
+                        g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                        return g
+                    if (_sd(h, a) != 0) and (not _is_forbidden(h, a)):
+                        g.update(out=out, base=base, score=score, inning=inning, top=top, is_over=True, _in_half=False)
+                        return g
+                    # - 동점: 반드시 연장
+
+        # 다음 하프로 진행
+        out, base = 0, [0,0,0,0]
+        inning = inning + (1 if prev_half == '말' else 0)
+        top = '말' if prev_half == '초' else '초'
+        g["half_start_score"] = score[0 if top == '초' else 1]
+        g["_in_half"] = True
+
+
+    # 상태 업데이트
+    g.update(out=out, base=base, score=score, inning=inning, top=top)
+    return g
+
+
+
+# ----- HTML 렌더러 -----
+def render_games_html(games):
+    cards = []
+    for idx, g in enumerate(games):
+        on1,on2,on3,_ = g["base"]
+        outs = g["out"]; inning = g["inning"]; half = g["top"]; over = g["is_over"]
+        badge_cls = 'over' if over else ('top' if half=='초' else 'bot')
+        badge_txt = '종료' if over else (f'{inning}회 {half}')
+
+        # 팀명 + 순위 라벨
+        left_html  = _team_name_with_rank_html(g["away"], g.get("_label_away",""))
+        right_html = _team_name_with_rank_html(g["home"], g.get("_label_home",""))
+
+
+        # 중앙 스코어
+        center_score_html = (
+            f'<div class="score-center">'
+        )
+
+        # 지난 경기 스코어 (모바일용 span)
+        if g.get("_prev_leg_note"):
+            try:
+                prev_away, prev_home = g["_prev_leg_note"].split(":")
+                prev_away = prev_away.strip()
+                prev_home = prev_home.strip()
+            except Exception:
+                prev_away, prev_home = "", ""
+
+            center_score_html += (
+                f'  <span class="prev-leg-away">{prev_away}</span>'
+                f'  <span class="prev-leg-home">{prev_home}</span>'
+            )
+
+        # 현재 경기 스코어
+        center_score_html += (
+            f'  <span class="score-away">{g["score"][0]}</span>'
+            f'  <span class="score-sep">:</span>'
+            f'  <span class="score-home">{g["score"][1]}</span>'
+        )
+
+        # 데스크탑용 지난 경기 스코어
+        if g.get("_prev_leg_note"):
+            center_score_html += (
+                f'<div class="prev-leg-desktop" '
+                f'style="font-size:12px; color:#6b7280; margin-top:2px; text-align:center;">'
+                f'{html.escape(g["_prev_leg_note"])}'
+                f'</div>'
+            )
+
+        center_score_html += '</div>'
+
+
+        # 주자/다이아몬드
+        diamond = f"""
+        <div class="diamond">
+            <div class="base b2 {'on' if on2 else ''}"></div>
+            <div class="base b3 {'on' if on3 else ''}"></div>
+            <div class="base b1 {'on' if on1 else ''}"></div>
+            <div class="base home"></div>
+        </div>
+        """
+
+        outdots = ''.join('<span class="outdot"></span>' for _ in range(min(outs,3)))
+        last = g["last_act"] or "-"
+
+        card = f"""
+        <div class="card">
+            <div class="header">
+                <div>Game {idx+1}</div>
+                <div class="badge {badge_cls}">{badge_txt}</div>
+            </div>
+
+            <div class="teams-row">
+                {left_html}
+                {center_score_html}
+                {right_html}
+            </div>
+
+            <div class="row"><div class="meta">아웃</div><div class="outs">{outdots}</div></div>
+            {diamond}
+            <div class="lastact">마지막 플레이: {last}</div>
+        </div>
+        """
+        cards.append(card)
+
+    return CSS + f"""<div class="board"><div class="grid">{''.join(cards)}</div></div>"""
+
+#@title Simulate — (Play → Render → Record + Checkpoint) 〔atomic pickle + TICK autosave + KeyboardInterrupt + standings snapshot〕
+# -*- coding: utf-8 -*-
+# Colab/Notebook에서 실행
+
+from __future__ import annotations
+import csv, datetime as dt, time, html, os, pickle, tempfile, shutil, random, glob, unicodedata as _ud
+from pathlib import Path
+from typing import Any, Optional, Iterable
+
+# ===== 외부 셀에서 제공되는 전역(가정) =====
+# CONFIG: dict, YEAR_DIR: Path, new_game(away,home) -> game dict,
+# step_once(game) -> mutates game, render_games_html(games) -> str(HTML),
+# load_earliest_unplayed_group() -> (date, rows)
+YEAR:int = CONFIG["year"]
+YEAR_DIR:Path = Path(YEAR_DIR)  # noqa: F811
+SCHEDULE_DIR = YEAR_DIR / "schedules"
+
+# ===== 체크포인트/루프 파라미터 =====
+CHECKPOINT_PATH = YEAR_DIR / "checkpoints" / "sim_checkpoint.pkl"
+AUTO_RESUME = True
+SLEEP_SEC   = 2.0          # 화면 갱신 간격(초) — 저장과 무관
+AUTOSAVE_EVERY = 1         # ✅ tick 단위 자동 저장 주기 (예: 5면 5틱마다 저장)
+
+# ===== 표시용 =====
+KOR_WEEKDAY = {0:"월",1:"화",2:"수",3:"목",4:"금",5:"토",6:"일"}
+
+# ===== CSV IO =====
+FIELDNAMES = ["No.","년","월","일","요일","Away","Score_A","Score_H","Home",
+              "Round","Stage","Region","Group","Leg","Tie","Note"]
+
+# === 필수 함수 준비 확인 ===
+REQUIRED = [
+    "process_localcup_regionals",
+    "process_championship_finals",
+    "process_promotion",
+    "update_championship_placeholders",
+]
+
+MISSING = [f for f in REQUIRED if not callable(globals().get(f))]
+if MISSING:
+    raise RuntimeError(f"⛔ 미정의 함수: {MISSING}")
+else:
+    print("🎯 모든 필수 후처리 함수 준비 완료")
+
+def scan_csv_paths() -> list[Path]:
+    pats = [
+        f"league_div*_{YEAR}.csv",
+        f"localcup_*_{YEAR}.csv",
+        f"localcup_{YEAR}.csv",
+        f"promo_*_{YEAR}.csv",
+        f"championship_*_{YEAR}.csv",
+    ]
+    out = []
+    for pat in pats:
+        out.extend(sorted(SCHEDULE_DIR.glob(pat)))
+    # 중복 제거(순서 보존)
+    return list(dict.fromkeys(out))
+
+CSV_PATHS = scan_csv_paths()
+
+def read_csv_rows(path: Path) -> list[dict]:
+    if not path.exists(): return []
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+def write_csv_rows(path: Path, rows: list[dict], fieldnames: list[str]=FIELDNAMES):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in fieldnames})
+
+# ===== CSV 파일 추론기 (src 가 비어있어도 파일을 찾아 기록) =====
+def _candidate_csvs_for_stage(stage: str) -> list[Path]:
+    pats = []
+    if stage == "리그":
+        pats = [f"league_div*_{YEAR}.csv"]
+    elif stage == "로컬컵":
+        # 지역예선/조별예선이 지역별 파일 또는 통합 파일로 섞여 있을 수 있으므로 둘 다 탐색
+        pats = [f"localcup_*_{YEAR}.csv", f"localcup_{YEAR}.csv"]
+    elif stage == "승강PO":
+        pats = [f"promo_*_{YEAR}.csv"]
+    elif stage == "챔피언십":
+        pats = [f"championship_*_{YEAR}.csv"]
+    else:
+        pats = [f"*_{YEAR}.csv"]
+
+    files = []
+    for pat in pats:
+        files.extend(sorted(SCHEDULE_DIR.glob(pat)))
+    # 중복 제거(순서 보존)
+    return list(dict.fromkeys(files))
+
+def _row_date_iso(row: dict) -> str | None:
+    try:
+        y = str(row.get("년","")).strip()
+        m = str(row.get("월","")).strip()
+        d = str(row.get("일","")).strip()
+        if not (y and m and d): return None
+        return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+    except Exception:
+        return None
+
+def _same_match(row: dict, date_iso: str | None, away: str, home: str,
+                round_: str | None, leg: int | None, tie: str | None) -> bool:
+    # 날짜/팀은 반드시 일치, 라운드/레그/타이는 있으면 가산점
+    if date_iso and _row_date_iso(row) != date_iso:
+        return False
+    if (row.get("Away","").strip() != away) or (row.get("Home","").strip() != home):
+        return False
+    # 추가 단서가 주어졌다면 가능하면 일치하는 쪽을 나중에 우선 선택하도록
+    score = 0
+    if round_ and (row.get("Round","").strip() == round_): score += 1
+    if tie   and (row.get("Tie","").strip()   == tie):     score += 1
+    if (leg is not None):
+        try:
+            if int(str(row.get("Leg","")).strip() or 0) == int(leg):
+                score += 1
+        except:  # 무시
+            pass
+    # score는 호출자에서 사용
+    row["_match_score"] = score
+    return True
+
+def _infer_csv_path_for_game(g: dict) -> Path | None:
+    """g["_src"]가 없을 때, 스테이지/날짜/팀/라운드 단서로 CSV 파일을 찾아낸다."""
+    stage   = (g.get("_stage")  or g.get("Stage")  or "").strip()
+    round_  = (g.get("_round")  or g.get("Round")  or "").strip() or None
+    tie     = (g.get("_tie")    or g.get("Tie")    or "").strip() or None
+    leg     = _to_int(g.get("_leg") or g.get("Leg"), None)
+    date_iso= (g.get("_date") or "").strip() or None
+    away    = g.get("away") or g.get("Away")
+    home    = g.get("home") or g.get("Home")
+    if not (away and home):
+        return None
+
+    candidates = _candidate_csvs_for_stage(stage)
+    best = None  # (score, path)
+    for p in candidates:
+        rows = read_csv_rows(p)
+        for row in rows:
+            if _same_match(row, date_iso, away, home, round_, leg, tie):
+                score = int(row.get("_match_score",0))
+                if (best is None) or (score > best[0]):
+                    best = (score, p)
+    if best:
+        return best[1]
+
+    # 날짜가 깨져 있는 CSV가 있을 수 있으니, 마지막 폴백: 날짜 무시(동일 매치가 하나뿐인 경우에만)
+    hits = []
+    for p in candidates:
+        rows = read_csv_rows(p)
+        for row in rows:
+            if _same_match(row, None, away, home, round_, leg, tie):
+                hits.append((int(row.get("_match_score",0)), p))
+    if len(hits) == 1:
+        return hits[0][1]
+    # 애매하면 포기(경고만 출력)
+    print(f"[WARN] CSV 추론 실패(stage={stage}, date={date_iso}, {away}@{home})")
+    return None
+
+# ===== HTML 렌더링 =====
+CHAMP_KO_ROUNDS     = {"QF","SF","3rd","Final"}
+LOCALCUP_KO_ROUNDS  = {"SF","3rd","Final"}
+
+def _format_prev_leg_note(g: dict) -> Optional[str]:
+    """2차전이면 같은 CSV에서 1차전 스코어를 찾아 'X : Y' 형태로 반환.
+       1) Tie 일치 우선
+       2) 실패 시 같은 두 팀의 1차전(LEG=1)로 대체 탐색
+       ※ 항상 '현재 경기의 홈/원정 기준'으로 숫자 재배치
+    """
+    stage  = _as_stripped(g.get("_stage") or g.get("Stage"))
+    rnd    = _as_stripped(g.get("_round") or g.get("Round"))
+    legval = _to_int(g.get("_leg") or g.get("Leg"), None)
+    tie_id = _as_stripped(g.get("_tie") or g.get("Tie"))
+    src    = _as_stripped(g.get("_src") or g.get("Src"))
+
+    if legval != 2:
+        return None
+
+    two_legged = False
+    if stage == "승강PO":
+        two_legged = True
+    elif stage == "챔피언십" and (rnd in CHAMP_KO_ROUNDS or rnd == "PO" or legval == 2):
+        two_legged = True
+    elif stage == "로컬컵" and (rnd in LOCALCUP_KO_ROUNDS or rnd == "PO" or legval == 2):
+        two_legged = True
+    if not two_legged or not src:
+        return None
+
+    csv_path = (SCHEDULE_DIR / src) if src else None
+    if not csv_path or not csv_path.exists():
+        csv_path = _infer_csv_path_for_game(g)
+        if not csv_path:
+            return None  # 파일을 못 찾으면 표기 불가
+
+    prev = _find_prev_leg_row_for_tie(csv_path, tie_id, leg_target=1, current=g) if tie_id else None
+    if not prev:
+        prev = _find_prev_leg_row_fallback(csv_path, g)
+        if not prev:
+            return None
+
+    sa = _as_stripped(prev.get("Score_A"))
+    sh = _as_stripped(prev.get("Score_H"))
+    if sa == "" or sh == "":
+        return None
+
+    try:
+        sa_i = int(float(sa)); sh_i = int(float(sh))
+    except Exception:
+        return None
+
+    prev_away = _as_stripped(prev.get("Away"))
+    prev_home = _as_stripped(prev.get("Home"))
+
+    cur_home = _as_stripped(g.get("home") or g.get("Home"))
+    cur_away = _as_stripped(g.get("away") or g.get("Away"))
+
+    # 매핑: 항상 "현재 홈 : 현재 원정" 기준으로 맞춤
+    if prev_home == cur_home and prev_away == cur_away:
+        # 홈/원정 동일
+        home_score, away_score = sh_i, sa_i
+    elif prev_home == cur_away and prev_away == cur_home:
+        # 홈/원정 뒤집힘
+        home_score, away_score = sa_i, sh_i
+    else:
+        # 팀명이 안 맞으면 그냥 원본 그대로 (홈:sh, 원정:sa)
+        home_score, away_score = sh_i, sa_i
+
+    return f"{away_score} : {home_score}"
+
+
+def attach_prev_leg_notes(games: list[dict]) -> None:
+    for g in games:
+        note = _format_prev_leg_note(g)
+        if note:
+            g["_prev_leg_note"] = note
+        else:
+            if "_prev_leg_note" in g:
+                del g["_prev_leg_note"]
+
+def _render_header_day(d: dt.date) -> str:
+    return ('<div style="font-family: ui-sans-serif, system-ui, AppleSDGothicNeo;'
+            'font-weight:800;font-size:17px;margin:6px 0 12px;">'
+            f'{d.month}/{d.day}({KOR_WEEKDAY[d.weekday()]})</div>')
+
+def render_frame(when: dt.date, games: list[dict]):
+    from IPython.display import HTML, display, clear_output
+    html_block = _render_header_day(when) + render_games_html(games)
+    clear_output(wait=True)
+    display(HTML(html_block))
+
+# ===== 유틸: 안전 접근 =====
+def _norm(s) -> str:
+    """NFC 정규화 + strip. dict 키 접근 안정화용."""
+    return _ud.normalize("NFC", (str(s) if s is not None else "")).strip()
+
+def _get(r: Any, name: str, default=None):
+    if hasattr(r, name): return getattr(r, name)
+    if isinstance(r, dict): return r.get(name, default)
+    return default
+
+def _as_stripped(x) -> str:
+    return (str(x).strip() if x is not None else "")
+
+def _to_int(x, default=0):
+    try:
+        # "2", "2.0", 2 -> 2 로 안전 변환
+        xs = str(x).strip()
+        if xs == "": return default
+        if "." in xs:
+            return int(float(xs))
+        return int(xs)
+    except Exception:
+        return default
+
+def games_from_rows(rows: list[Any]) -> list[dict]:
+    gs=[]
+    for r in rows:
+        away=_get(r,"away") or _get(r,"Away","")
+        home=_get(r,"home") or _get(r,"Home","")
+        if not (away and home): continue
+        g = new_game(away, home)
+        date_val = _get(r,"date") or _get(r,"Date")
+        g["_date"]   = (date_val.isoformat() if isinstance(date_val, (dt.date, dt.datetime)) else str(date_val))
+        g["_src"]    = _get(r,"src") or _get(r,"Src") or ""
+        g["_stage"]  = _get(r,"stage")  or _get(r,"Stage","")
+        g["_round"]  = _get(r,"round")  or _get(r,"Round","")
+        g["_region"] = _get(r,"region") or _get(r,"Region","")
+        g["_group"]  = _get(r,"group")  or _get(r,"Group","")
+        g["_leg"]    = _get(r,"leg")    or _get(r,"Leg","")
+        g["_tie"]    = _get(r,"tie")    or _get(r,"Tie","")
+        gs.append(g)
+    return gs
+
+def _record_results_to_csv(games: list[dict]):
+    for g in games:
+        if not g.get("is_over"):
+            continue
+
+        # [변경] src 없으면 추론기로 찾기
+        src_name = g.get("_src")
+        csv_path = SCHEDULE_DIR / src_name if src_name else None
+        if not csv_path or not csv_path.exists():
+            csv_path = _infer_csv_path_for_game(g)
+            if csv_path is None:
+                print(f"[WARN] 기록 대상 CSV를 찾지 못했습니다: {g.get('away')}@{g.get('home')} ({g.get('_stage')})")
+                continue
+            # 찾아낸 경우, 이후 로직과 일관성을 위해 g에도 주입
+            g["_src"] = csv_path.name
+
+        rows = read_csv_rows(csv_path)
+        if not rows:
+            continue
+
+        sa, sh = g["score"]
+        date_iso = (g.get("_date") or "").strip()
+
+        updated = False
+        for row in rows:
+            y = str(row.get("년","")).zfill(4)
+            m = str(row.get("월","")).zfill(2)
+            d = str(row.get("일","")).zfill(2)
+            if f"{y}-{m}-{d}" == date_iso and row.get("Away","")==g["away"] and row.get("Home","")==g["home"]:
+                row["Score_A"] = str(int(sa) if isinstance(sa,(int,float)) and float(sa).is_integer() else sa)
+                row["Score_H"] = str(int(sh) if isinstance(sh,(int,float)) and float(sh).is_integer() else sh)
+                updated = True
+                break
+
+        if not updated:
+            # 날짜가 CSV에 살짝 다르게 들어간 경우(요일만 같은) 등 폴백 매칭
+            for row in rows:
+                if row.get("Away","")==g["away"] and row.get("Home","")==g["home"]:
+                    row["Score_A"] = str(int(sa) if isinstance(sa,(int,float)) and float(sa).is_integer() else sa)
+                    row["Score_H"] = str(int(sh) if isinstance(sh,(int,float)) and float(sh).is_integer() else sh)
+                    updated = True
+                    break
+
+        if updated:
+            write_csv_rows(csv_path, rows)
+        else:
+            print(f"[WARN] CSV 행 매칭 실패: {csv_path.name} / {g['away']}@{g['home']} (date={date_iso})")
+
+
+# ===== (NEW) 홈앤드어웨이 2차전용: 지난 경기 점수차를 "이번 경기 홈-원정 기준"으로 계산 =====
+def _find_prev_leg_row_for_tie(src_csv: Path, tie_id: str, leg_target:int=1, *, current:dict|None=None) -> Optional[dict]:
+    rows = read_csv_rows(src_csv)
+    tie_id = _as_stripped(tie_id)
+    # 현재 경기 문맥(라운드/스테이지/팀) 추출
+    cur_stage = _as_stripped(current.get("_stage") or current.get("Stage")) if current else ""
+    cur_round = _as_stripped(current.get("_round") or current.get("Round")) if current else ""
+    cur_away  = _as_stripped(current.get("away") or current.get("Away")) if current else ""
+    cur_home  = _as_stripped(current.get("home") or current.get("Home")) if current else ""
+
+    candidates = []
+    for row in rows:
+        if _as_stripped(row.get("Tie")) != tie_id:
+            continue
+        if _to_int(row.get("Leg"), None) != leg_target:
+            continue
+
+        score = 0
+        # 스테이지/라운드 일치 가산점
+        if cur_stage and _as_stripped(row.get("Stage")) == cur_stage: score += 2
+        if cur_round and _as_stripped(row.get("Round")) == cur_round: score += 2
+
+        # 같은 두 팀(홈/원정 뒤바뀜 허용) 가산점
+        r_away = _as_stripped(row.get("Away")); r_home = _as_stripped(row.get("Home"))
+        if {r_away, r_home} == {cur_away, cur_home}:
+            score += 3
+
+        # 날짜가 현재 경기보다 이전이면 소폭 가산(동일 Tie 내 이상치 방지)
+        try:
+            ry = _to_int(row.get("년")); rm = _to_int(row.get("월")); rd = _to_int(row.get("일"))
+            rdate = dt.date(ry, rm, rd)
+            if current and _as_stripped(current.get("_date")):
+                y,m,d = map(int, current["_date"].split("-"))
+                cdate = dt.date(y,m,d)
+                if rdate <= cdate:
+                    score += 1
+        except Exception:
+            pass
+
+        candidates.append((score, row))
+
+    if not candidates:
+        return None
+    # 점수 최고(=가장 잘 맞는 1차전)를 선택
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+def _find_prev_leg_row_fallback(csv_path: Path, g: dict) -> Optional[dict]:
+    """Tie 매칭에 실패할 때: 같은 CSV에서 같은 두 팀이 치른 1차전(LEG=1)을 탐색."""
+    rows = read_csv_rows(csv_path)
+    if not rows:
+        return None
+
+    tgt_away = _as_stripped(g.get("away") or g.get("Away"))
+    tgt_home = _as_stripped(g.get("home") or g.get("Home"))
+    tgt_stage = _as_stripped(g.get("_stage") or g.get("Stage"))
+    tgt_round = _as_stripped(g.get("_round") or g.get("Round"))
+    # 현재 경기 날짜(있으면) 파싱: fallback 시 "현재 경기 이전" 후보를 먼저 선호
+    cur_date_iso = _as_stripped(g.get("_date"))
+    cur_date = None
+    try:
+        y,m,d = map(int, cur_date_iso.split("-"))
+        cur_date = dt.date(y,m,d)
+    except Exception:
+        pass
+
+    candidates = []
+    for row in rows:
+        # 1차전만
+        if _to_int(row.get("Leg"), None) != 1:
+            continue
+        # 같은 대회/라운드(있을 때만 엄격히 비교)
+        st = _as_stripped(row.get("Stage"))
+        rnd = _as_stripped(row.get("Round"))
+        if tgt_stage and st and st != tgt_stage:
+            continue
+        if tgt_round and rnd and rnd != tgt_round:
+            continue
+        # 같은 두 팀 매치(홈/원정 뒤바뀐 것도 허용)
+        r_away = _as_stripped(row.get("Away"))
+        r_home = _as_stripped(row.get("Home"))
+        if {r_away, r_home} != {tgt_away, tgt_home}:
+            continue
+
+        # 후보에 날짜와 함께 담음
+        try:
+            ry = _to_int(row.get("년")); rm = _to_int(row.get("월")); rd = _to_int(row.get("일"))
+            rdate = dt.date(ry, rm, rd)
+        except Exception:
+            rdate = None
+        candidates.append((rdate, row))
+
+    if not candidates:
+        return None
+
+    # 정렬 기준:
+    # 1) 현재 경기 '이전' 날짜 우선, 2) 가장 가까운 날짜, 3) 없으면 그냥 가장 최근
+    if cur_date:
+        before = [(abs((cur_date - rdate).days), rdate, row) for rdate, row in candidates if rdate and rdate <= cur_date]
+        if before:
+            before.sort(key=lambda x: (x[0], x[1]))
+            return before[0][2]
+    # 백업: 날짜 정보 불완전하면 임의로 첫 후보 반환(혹은 최신)
+    candidates.sort(key=lambda x: (x[0] or dt.date.min))
+    return candidates[-1][1]
+
+def compute_prev_leg_diff_for_leg2(g: dict) -> Optional[int]:
+    """이번 경기(2차전)의 홈/원정을 기준으로 1차전 최종 점수차를 환산하여 반환.
+       점수 미기입 시 0(=동점으로 간주) 반환하여 이번 경기 무승부 금지 효과 부여."""
+    src_name = _as_stripped(g.get("_src"))
+    tie_id   = _as_stripped(g.get("_tie"))
+    if not tie_id:
+        return 0
+
+    csv_path = (SCHEDULE_DIR / src_name) if src_name else None
+    if not csv_path or not csv_path.exists():
+        csv_path = _infer_csv_path_for_game(g)
+        if not csv_path:
+            return 0
+
+    row = _find_prev_leg_row_for_tie(csv_path, tie_id, leg_target=1, current=g)
+    if not row:
+        return 0
+
+    prev_home = _as_stripped(row.get("Home"))
+    prev_away = _as_stripped(row.get("Away"))
+    sh = _to_int(row.get("Score_H"), 0)
+    sa = _to_int(row.get("Score_A"), 0)
+
+    cur_home = _as_stripped(g.get("home") or g.get("Home") or g.get("Home"))
+    cur_away = _as_stripped(g.get("away") or g.get("Away") or g.get("Away"))
+
+    # "이번 경기 홈-원정" 기준으로 과거 득점을 매핑
+    # 이전경기 홈이 이번경기 홈이면: diff = prev_home - prev_away = sh - sa
+    # 이전경기 홈이 이번경기 원정이면: diff = prev_원정(=sa) - prev_홈(=sh)
+    if prev_home == cur_home and prev_away == cur_away:
+        return sh - sa
+    elif prev_home == cur_away and prev_away == cur_home:
+        return sa - sh
+    else:
+        # 팀명이 다르면 보수적으로 0 처리
+        return 0
+
+# ===== (NEW) 경기 성격 판별 =====
+CHAMP_SINGLE_ROUNDS = {"1R","2R","3R"}
+CHAMP_KO_ROUNDS     = {"QF","SF","3rd","Final"}
+LOCALCUP_KO_ROUNDS  = {"SF","3rd","Final"}
+
+def _agg_diff_now(g: dict, prev_leg_diff: int | None) -> int | None:
+    """현재 경기 점수까지 합산한 합계득실(홈-원정 기준)."""
+    if prev_leg_diff is None:
+        return None
+    try:
+        sa, sh = g["score"]   # [away, home]
+        return int(prev_leg_diff) + (int(sh) - int(sa))
+    except Exception:
+        return prev_leg_diff
+
+def _needs_unlimited_overtime(g: dict) -> tuple[bool, int | None]:
+    stage  = _as_stripped(g.get("_stage") or g.get("Stage"))
+    rnd    = _as_stripped(g.get("_round") or g.get("Round"))
+    legval = _to_int(g.get("_leg") or g.get("Leg"), None)
+
+    # 승강PO는 무조건 연장 강제
+    if stage == "승강PO":
+        return True, 0
+
+    # 챔피언십 단판(1R/2R/3R)
+    if stage == "챔피언십" and rnd in CHAMP_SINGLE_ROUNDS:
+        return True, 0
+
+    # 챔피언십 KO 2차전
+    if stage == "챔피언십" and rnd in CHAMP_KO_ROUNDS and legval == 2:
+        prev_diff = compute_prev_leg_diff_for_leg2(g)
+        agg_diff  = _agg_diff_now(g, prev_diff)
+        # 합계 동률일 때만 연장 강제
+        return True, prev_diff
+
+    # 로컬컵 KO/PO 2차전도 같은 규칙 적용
+    if stage == "로컬컵" and legval == 2:
+        prev_diff = compute_prev_leg_diff_for_leg2(g)
+        agg_diff  = _agg_diff_now(g, prev_diff)
+        return True, prev_diff
+
+    return False, None
+
+# ===== 체크포인트 I/O —— Backup 방식(atomic pickle + RNG 상태) =====
+def atomic_save_pickle(path: Path, data: Any):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(delete=False, dir=str(path.parent)) as tmp:
+        pickle.dump(data, tmp, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp_path = Path(tmp.name)
+    shutil.move(str(tmp_path), str(path))
+
+def save_checkpoint_atomic(earliest: dt.date, games: list[dict], *, tick: int, params: dict|None=None):
+    state = {
+        "GAMES": games,
+        "tick": int(tick),
+        "earliest": earliest,
+        "random_state": random.getstate(),
+        "params": (params or {"SLEEP_SEC": SLEEP_SEC, "YEAR": YEAR}),
+        "saved_at": time.time(),
+    }
+    atomic_save_pickle(CHECKPOINT_PATH, state)
+
+def load_checkpoint() -> Optional[dict]:
+    if not CHECKPOINT_PATH.exists(): return None
+    try:
+        with CHECKPOINT_PATH.open("rb") as f:
+            state = pickle.load(f)
+        # 구포맷(version...) 호환
+        if isinstance(state, dict) and "version" in state and "games" in state and "earliest" in state:
+            return {
+                "GAMES": state.get("games", []),
+                "tick": 0,
+                "earliest": dt.date.fromisoformat(state["earliest"]),
+                "random_state": None,
+                "params": {"SLEEP_SEC": SLEEP_SEC, "YEAR": YEAR},
+                "saved_at": state.get("saved_at", time.time()),
+            }
+        return state if isinstance(state, dict) else None
+    except Exception as e:
+        print(f"[WARN] 체크포인트 로드 실패: {e}")
+        return None
+
+def remove_checkpoint():
+    try:
+        if CHECKPOINT_PATH.exists():
+            CHECKPOINT_PATH.unlink()
+            print("[CLEANUP] 체크포인트 삭제 완료")
+    except Exception as e:
+        print(f"[WARN] 체크포인트 정리 중 오류: {e}")
+
+def _all_over(games: list[dict]) -> bool:
+    return all(g.get("is_over") for g in games) if games else False
+
+# =====================================================================
+# ✅ 추가: 경기 종료 후 “종류별” 순위 스냅샷(PKL) 자동 저장 유틸
+#    - 리그: /{YEAR}/standings/standings_league_{YEAR}.pkl
+#    - 로컬컵(GS/지역·조예선만): /{YEAR}/standings/standings_localcup_{YEAR}.pkl
+# =====================================================================
+
+KNOCKOUT_REGIONS = {"PO","QF","SF","3rd","Final"}  # 로컬컵 토너먼트는 순위 집계 제외
+
+def _iter_rows(paths: Iterable[Path]) -> Iterable[dict]:
+    for p in paths:
+        if not p.exists(): continue
+        with p.open(newline="", encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                yield row
+
+def _rebuild_league_standings(league_csv_paths: list[Path]) -> dict:
+    teams = {}
+    played = set()
+    for row in _iter_rows(league_csv_paths):
+        sa = _as_stripped(row.get("Score_A"))
+        sh = _as_stripped(row.get("Score_H"))
+        if sa=="" or sh=="": continue
+        away = _as_stripped(row.get("Away"))
+        home = _as_stripped(row.get("Home"))
+        y = _to_int(row.get("년")); m = _to_int(row.get("월")); d = _to_int(row.get("일"))
+        key = (f"{y:04d}-{m:02d}-{d:02d}", away, home)
+        if key in played: continue
+        played.add(key)
+
+        sa_i, sh_i = _to_int(sa), _to_int(sh)
+        for t in (away, home):
+            if t not in teams:
+                teams[t] = dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0)
+        A, H = teams[away], teams[home]
+        A["GF"] += sa_i; A["GA"] += sh_i; A["GP"] += 1
+        H["GF"] += sh_i; H["GA"] += sa_i; H["GP"] += 1
+
+        if sa_i > sh_i:   A["W"] += 1; H["L"] += 1; A["P"] += 3
+        elif sa_i < sh_i: H["W"] += 1; A["L"] += 1; H["P"] += 3
+        else:             A["D"] += 1; H["D"] += 1; A["P"] += 1; H["P"] += 1
+
+        A["GD"] = A["GF"] - A["GA"]
+        H["GD"] = H["GF"] - H["GA"]
+
+    # 🔹 한 경기도 안 치른 팀도 모두 0으로 시드
+    ZERO = dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0)
+    for t in getattr(globals(), "TEAM2DIV", {}).keys():
+        tn = _norm(t)
+        if tn not in teams:
+            teams[tn] = ZERO.copy()
+
+    return {"teams": teams, "played_ids": played}
+
+def _save_pickle_atomic(path: Path, data: Any):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(delete=False, dir=str(path.parent)) as tmp:
+        pickle.dump(data, tmp, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp_path = Path(tmp.name)
+    shutil.move(str(tmp_path), str(path))
+
+def update_standings_snapshots_on_demand(games: list[dict]):
+    has_league = any((_as_stripped(g.get("_stage") or g.get("stage")) == "리그") for g in games if g.get("is_over"))
+    has_local_gs = False
+    for g in games:
+        if not g.get("is_over"): continue
+        st = _as_stripped(g.get("_stage") or g.get("stage"))
+        if st != "로컬컵": continue
+        round_ = _as_stripped(g.get("_round") or g.get("round"))
+        if round_ == "PO":
+            continue
+        reg = _as_stripped(g.get("_region") or g.get("region"))
+        if reg and reg in KNOCKOUT_REGIONS:
+            continue
+        has_local_gs = True
+        break
+
+    if has_league:
+        league_csvs = [SCHEDULE_DIR / f"league_div{d}_{YEAR}.csv" for d in (1,2,3)]
+        snap = _rebuild_league_standings(league_csvs)
+        path = YEAR_DIR / "standings" / f"standings_league_{YEAR}.pkl"
+        _save_pickle_atomic(path, snap)
+        print(f"[SNAPSHOT] League → {path.name} 갱신")
+
+    if has_local_gs:
+        regionals = sorted(SCHEDULE_DIR.glob(f"localcup_*_{YEAR}.csv"))
+        mainfile  = SCHEDULE_DIR / f"localcup_{YEAR}.csv"
+        local_csvs = list(dict.fromkeys(regionals + ([mainfile] if mainfile.exists() else [])))
+        snap = rebuild_localcup_standings_from_csv_no_save(local_csvs)
+        path = YEAR_DIR / "standings" / f"standings_localcup_{YEAR}.pkl"
+        _save_pickle_atomic(path, snap)
+        print(f"[SNAPSHOT] LocalCup(GS) → {path.name} 갱신")
+
+
+# ===== 랭크 맵(존재 여부) 유틸(NEW·선택) =====
+def _league_team_stat(league_st: dict|None, team: str) -> dict|None:
+    if not league_st or "teams" not in league_st:
+        return None
+    return league_st["teams"].get(_norm(team))
+
+def _local_team_stat(local_st: dict|None, region: str, group: str, team: str) -> dict|None:
+    """
+    1) 정규화된 정확 매치: regions[region][group][team]
+    2) 폴백 A: group이 없을 때 "", None, "A" 사이 매핑 시도
+    3) 폴백 B: region 키가 안 맞으면 모든 region을 훑어 같은 team을 가진 첫 그룹을 반환
+       (KO 라운드는 스냅샷에 안 들어가므로 GS/지역예선 범위에서만 매치됨)
+    """
+    if not local_st or "regions" not in local_st:
+        return None
+
+    r = _norm(region)
+    g = _norm(group) or "A"
+    t = _norm(team)
+
+    regions = local_st["regions"]
+
+    # 1) 정확 매치
+    reg = regions.get(r)
+    if reg:
+        grp = reg.get(g)
+        if grp and t in grp:
+            return grp[t]
+
+        # 2) 폴백 A: 조가 애매할 때 빈문자/None/"A" 교차 탐색
+        for gg in (g, "A", "", None):
+            if gg is None:
+                continue
+            grp2 = reg.get(_norm(gg))
+            if grp2 and t in grp2:
+                return grp2[t]
+
+    # 3) 폴백 B: 지역 키가 달랐던 케이스 → 모든 지역/조에서 팀을 탐색
+    best = None
+    for rkey, groups in regions.items():
+        for gkey, table in groups.items():
+            if t in table:
+                # 조가 비어있는 지역예선(서울/충청)도 여기서 안전하게 매치됨
+                best = table[t]
+                break
+        if best:
+            break
+    return best
+
+def _points_for_label(stage: str, region: str, group: str, team: str,
+                      league_st: dict|None, local_st: dict|None) -> str:
+    """
+    라벨 옆에 (Xpt)를 항상 표시.
+    - 팀/키가 스탠딩에 '존재'하면 P값(없으면 0)으로 표기
+    - 팀/키가 아예 없으면 빈 문자열(표시 생략)
+    """
+    try:
+        stg = _as_stripped(stage)
+        if stg == "리그":
+            stat = _league_team_stat(league_st, team)
+            if stat is None:
+                return ""  # 팀이 스탠딩에 없으면 생략
+            P = int(stat.get("P", 0))
+            return f"({P}pt)"  # 0도 표시
+
+        if stg == "로컬컵":
+            stat = _local_team_stat(local_st, region, group or "A", team)
+            if stat is None:
+                return ""  # 해당 지역/조/팀이 없으면 생략
+            P = int(stat.get("P", 0))
+            return f"({P}pt)"  # 0도 표시
+    except Exception:
+        pass
+    return ""
+
+# === 스탠딩 스냅샷 경로 (없으면 만들기) ===
+STANDINGS_PATH_LEAGUE   = YEAR_DIR / "standings" / f"standings_league_{YEAR}.pkl"
+STANDINGS_PATH_LOCALCUP = YEAR_DIR / "standings" / f"standings_localcup_{YEAR}.pkl"
+
+def _load_pickle_safe(path: Path) -> Any|None:
+    try:
+        if path.exists():
+            with path.open("rb") as f:
+                return pickle.load(f)
+    except Exception as e:
+        print(f"[WARN] 스탠딩 로드 실패({path.name}): {e}")
+    return None
+
+def _build_league_standings_now() -> dict:
+    league_csvs = [SCHEDULE_DIR / f"league_div{d}_{YEAR}.csv" for d in (1,2,3)]
+    return _rebuild_league_standings(league_csvs)
+
+def _build_localcup_gs_standings_now() -> dict:
+    regionals = sorted(SCHEDULE_DIR.glob(f"localcup_*_{YEAR}.csv"))
+    mainfile  = SCHEDULE_DIR / f"localcup_{YEAR}.csv"
+    local_csvs = list(dict.fromkeys(regionals + ([mainfile] if mainfile.exists() else [])))
+    return rebuild_localcup_standings_from_csv_no_save(local_csvs)
+
+def _load_or_build_standings() -> tuple[dict|None, dict|None]:
+    league_st = _load_pickle_safe(STANDINGS_PATH_LEAGUE)
+    local_st  = _load_pickle_safe(STANDINGS_PATH_LOCALCUP)
+    # 없으면 즉석 재집계
+    if league_st is None:
+        try:
+            league_st = _build_league_standings_now()
+        except Exception as e:
+            print(f"[WARN] 리그 스냅샷 생성 실패: {e}")
+            league_st = None
+    if local_st is None:
+        try:
+            local_st = _build_localcup_gs_standings_now()
+        except Exception as e:
+            print(f"[WARN] 로컬컵 스냅샷 생성 실패: {e}")
+            local_st = None
+    return league_st, local_st
+
+def attach_rank_labels_to_games(games: list[dict]):
+    """현재 스탠딩 기준으로 각 경기 오브젝트에 라벨(_label_home/_label_away) 주입"""
+    league_st, local_st = _load_or_build_standings()
+    lrank = _league_rank_map(league_st) if league_st else {}
+    crank = _local_rank_map(local_st)   if local_st else {}
+
+    def _team_label(stage, region, group, team):
+        if _as_stripped(stage) == "로컬컵" and _as_stripped(round_) == "PO":
+            return ""
+        return _label_for_team(stage or "", region or "", (group or "A"), team,
+                               lrank, crank, league_st, local_st)
+
+    for g in games:
+        stage  = (g.get("_stage")  or g.get("Stage")  or "").strip()
+        region = (g.get("_region") or g.get("Region") or "").strip()
+        group  = (g.get("_group")  or g.get("Group")  or "").strip() or "A"
+        round_ = (g.get("_round")  or g.get("Round")  or "").strip()
+        g["_label_home"] = _team_label(stage, region, group, g["home"])
+        g["_label_away"] = _team_label(stage, region, group, g["away"])
+
+# ===== 결과 순위표 HTML 출력 (오늘 반영분만: 해당 div/지역만) =====
+from IPython.display import HTML, display
+
+def _collect_affected_buckets(games: list[dict]) -> tuple[set[int], dict[str, set[str]]]:
+    """오늘 끝난 경기 중
+       - 리그: 관련된 division들
+       - 로컬컵 GS/지역예선: 관련된 region와 group 집합
+    """
+    aff_divs: set[int] = set()
+    aff_loc: dict[str, set[str]] = {}
+    for g in games:
+        if not g.get("is_over"):
+            continue
+        stage  = (g.get("_stage") or g.get("Stage") or "").strip()
+        region = (g.get("_region") or g.get("Region") or "").strip()
+        group  = (g.get("_group")  or g.get("Group")  or "").strip() or "A"
+        aw, hm = g["away"], g["home"]
+
+        if stage == "리그":
+            # 해당 경기 팀들이 속한 div를 수집
+            d1 = TEAM2DIV.get(aw); d2 = TEAM2DIV.get(hm)
+            if d1: aff_divs.add(int(d1))
+            if d2: aff_divs.add(int(d2))
+
+        elif stage == "로컬컵" and region and region not in KNOCKOUT_REGIONS:
+            round_ = (g.get("_round") or g.get("Round") or "").strip()
+            if round_ != "PO":
+                aff_loc.setdefault(region, set()).add(group)
+
+    return aff_divs, aff_loc
+
+def _render_table_html(headers: list[str], rows: list[list[str]]) -> str:
+    # 헤더 셀
+    ths = ''.join(
+        f'<th style="padding:6px 8px; text-align:left; '
+        'background:#1f2937; color:#f9fafb; border-bottom:1px solid #374151;">'
+        f'{html.escape(h)}</th>'
+        for h in headers
+    )
+
+    # 바디 셀
+    trs = []
+    for r in rows:
+        tds = ''.join(
+            f'<td style="padding:6px 8px; text-align:left; '
+            'background:#111827; color:#f3f4f6; border-bottom:1px solid #374151;">'
+            f'{html.escape(str(c))}</td>'
+            for c in r
+        )
+        trs.append(f'<tr>{tds}</tr>')
+
+    # 컨테이너: 살짝 좁게, 라운드+그림자 (Backup 스타일 느낌)
+    return f'''
+    <div style="margin:12px 0; display:inline-block; min-width:460px; max-width:520px;">
+      <div style="border:1px solid #374151; border-radius:10px; overflow:hidden; background:#111827;
+                  box-shadow:0 1px 6px rgba(0,0,0,.25);">
+        <table style="width:100%; border-collapse:collapse; font-family:ui-sans-serif,system-ui,AppleSDGothicNeo;">
+          <thead style="font-weight:800;">{ths}</thead>
+          <tbody style="font-weight:600;">{''.join(trs)}</tbody>
+        </table>
+      </div>
+    </div>
+    '''
+
+
+
+def _render_league_div_table(div_no: int, league_st: dict) -> str:
+    teams_in_div = [t for t,d in TEAM2DIV.items() if int(d)==int(div_no)]
+    stats = {t: league_st["teams"].get(t, dict(P=0,W=0,D=0,L=0,GF=0,GA=0,GD=0,GP=0)) for t in teams_in_div}
+
+    prev_map = _get_prev_rank_map()
+    # 동률이면 전년도 통합순위(prev_map[team])가 낮은 값(=더 좋은 순위)이 우선
+    # 전년도 정보가 없으면 매우 큰 값(9999)로 처리하고, 마지막에 팀명으로 안정화
+    ordered = sorted(
+        stats.items(),
+        key=lambda kv: (*RANK_SORT(kv[1]), prev_map.get(kv[0], 9999), kv[0])
+    )
+
+    rows = []
+    for i, (t, s) in enumerate(ordered, 1):
+        rows.append([i, t, s.get("P",0), s.get("W",0), s.get("D",0), s.get("L",0),
+                     s.get("GF",0), s.get("GA",0), s.get("GD",0), s.get("GP",0)])
+    header = f'<div style="font-weight:900;font-size:18px;margin:8px 0 6px;">DIV{div_no} 순위</div>'
+    table  = _render_table_html(["#", "팀", "승점", "승", "무", "패", "득", "실", "득실", "경기"], rows)
+    return header + table
+
+def _render_local_region_group_table(region: str, group: str, local_st: dict) -> str:
+    table = local_st.get("regions", {}).get(region, {}).get(group, {})
+    prev_map = _get_prev_rank_map()   # 전년도 통합 순위 맵 재활용
+    ordered = sorted(
+        table.items(),
+        key=lambda kv: (*RANK_SORT(kv[1]), prev_map.get(kv[0], 9999), kv[0])
+    )
+    rows = []
+    for i, (t, s) in enumerate(ordered, 1):
+        rows.append([i, t, s.get("P",0), s.get("W",0), s.get("D",0), s.get("L",0),
+                     s.get("GF",0), s.get("GA",0), s.get("GD",0), s.get("GP",0)])
+    header = f'<div style="font-weight:900;font-size:18px;margin:8px 0 6px;">로컬컵 — {html.escape(region)} {html.escape(group or "A")}조</div>'
+    table  = _render_table_html(["#", "팀", "승점", "승", "무", "패", "득", "실", "득실", "경기"], rows)
+    return header + table
+
+def show_and_prove_matchup(havelist: list[dict]):
+    make_decision = maybe_builder()
+
+
+def show_affected_standings_after_games(games: list[dict]):
+    """끝난 경기 기준으로, 해당 div/지역만 순위표를 화면에 출력"""
+    # 오늘 반영 대상 수집
+    aff_divs, aff_loc = _collect_affected_buckets(games)
+    if not aff_divs and not aff_loc:
+        return  # 출력할 대상 없음
+
+    # 최신 스탠딩 로드(방금 update_standings_snapshots_on_demand로 저장됨)
+    league_st, local_st = _load_or_build_standings()
+
+    blocks = []
+    blocks.append('<div style="margin-top:16px;border-top:2px solid #e5e7eb;padding-top:12px;">')
+    blocks.append('<div style="font-weight:900;font-size:20px;margin-bottom:6px;">Rank</div>')
+
+    # 리그: 관련 div만
+    if league_st and aff_divs:
+        for d in sorted(aff_divs):
+            blocks.append(_render_league_div_table(int(d), league_st))
+
+    # 로컬컵: 지역예선/조별예선만 (KO 제외 이미 필터됨)
+    if local_st and aff_loc:
+        for region in sorted(aff_loc.keys()):
+            for group in sorted(aff_loc[region]):
+                # 스냅샷에 테이블 없으면 건너뜀(해당 조가 아직 경기 전 등)
+                table_exist = local_st.get("regions", {}).get(region, {}).get(group, {})
+                if table_exist:
+                    blocks.append(_render_local_region_group_table(region, group, local_st))
+
+    blocks.append('</div>')
+    display(HTML(''.join(blocks)))
+
+# ===== 메인 실행 =====
+state = load_checkpoint() if AUTO_RESUME else None
+tick = 0
+
+if state and state.get("earliest") and state.get("GAMES") is not None:
+    earliest = state["earliest"] if isinstance(state["earliest"], dt.date) else dt.date.fromisoformat(str(state["earliest"]))
+    GAMES = state["GAMES"]
+    tick  = int(state.get("tick", 0))
+    if state.get("random_state") is not None:
+        try: random.setstate(state["random_state"])
+        except: print("[WARN] 랜덤 상태 복원 실패(계속 진행)")
+    print(f"[RESUME] 체크포인트에서 재개: {earliest} 경기 {len(GAMES)}개 (tick={tick})")
+else:
+    earliest, today_rows = load_earliest_unplayed_group()
+    if earliest is None or not today_rows:
+        print("실행할 경기가 없습니다.")
+        raise SystemExit
+    print(f"[LOAD] {earliest}({KOR_WEEKDAY[earliest.weekday()]}) 경기 {len(today_rows)}개 로드")
+    GAMES = games_from_rows(today_rows)
+    attach_prev_leg_notes(GAMES)
+    # 초기 저장
+    save_checkpoint_atomic(earliest, GAMES, tick=tick)
+
+try:
+    while True:
+        if _all_over(GAMES):
+            break
+
+        # 한 틱 진행 —— ✅ 경기별로 무제한 연장 규칙/prev_leg_diff 적용
+        for g in GAMES:
+            if g.get("is_over"):
+                continue
+            needs_unlimited, prev_diff = _needs_unlimited_overtime(g)
+            if needs_unlimited:
+                step_once(g, prev_leg_diff=prev_diff if prev_diff is not None else 0)
+            else:
+                step_once(g)
+
+        # 화면
+        attach_rank_labels_to_games(GAMES)
+        attach_prev_leg_notes(GAMES)
+        render_frame(earliest, GAMES)
+
+        # ✅ TICK 단위 자동 저장
+        if (tick % AUTOSAVE_EVERY) == 0:
+            save_checkpoint_atomic(earliest, GAMES, tick=tick)
+
+        tick += 1
+        time.sleep(SLEEP_SEC)
+
+    # 최종 프레임
+    render_frame(earliest, GAMES)
+
+    # 결과 기록 → CSV 반영
+    _record_results_to_csv(GAMES)
+
+    # ✅ 오늘 경기 종류에 맞춰 PKL 스냅샷 갱신
+    update_standings_snapshots_on_demand(GAMES)
+
+    show_affected_standings_after_games(GAMES)
+
+    print(f"[END] {earliest} 경기 모두 종료 및 CSV/PKL 반영 완료")
+
+
+    # === [추가] 경기 종료 후 필요한 새 일정 자동 생성 ===
+    try:
+        # 1) 로컬컵(지역예선/PO/조별/8강/4강/결승·3위전 자동 진행)
+        process_localcup_regionals()
+    except Exception as e:
+        print(f"[LocalCup] 자동 진행 중 오류: {e}")
+
+    try:
+        # 2) 챔피언십(QF→SF→Final/3rd 자동 진행)
+        process_championship_finals()
+    except Exception as e:
+        print(f"[Championship] 자동 진행 중 오류: {e}")
+
+    try:
+        # 3) 승강PO(리그 1/2/3부 '모두' 종료된 경우에만 일정 생성/진행)
+        process_promotion()
+    except Exception as e:
+        print(f"[Promotion] 자동 진행 중 오류: {e}")
+
+    try:
+        # 4) 챔피언십 예선 CSV의 "Winner of (no.X)" 자리표시자 실명 치환
+        update_championship_placeholders()
+    except Exception as e:
+        print(f"[Winner 치환] 자동 진행 중 오류: {e}")
+
+except KeyboardInterrupt:
+    save_checkpoint_atomic(earliest, GAMES, tick=tick)
+    print(f"\n[INTERRUPT] 진행 중단. 체크포인트 저장 → {CHECKPOINT_PATH}")
+
+    # (선택) 중단 시에도 이미 끝난 경기가 있으면 스냅샷 갱신
+    try:
+        if any(g.get("is_over") for g in GAMES):
+            _record_results_to_csv([g for g in GAMES if g.get("is_over")])
+            update_standings_snapshots_on_demand([g for g in GAMES if g.get("is_over")])
+            print("[INFO] 중단 시점까지의 종료 경기 결과를 CSV/PKL에 반영했습니다.")
+    except Exception as e:
+        print(f"[WARN] 중단 시 스냅샷 반영 중 오류: {e}")
+
+finally:
+    # 완료되었으면 삭제, 미완료면 보강 저장
+    try:
+        if _all_over(GAMES):
+            remove_checkpoint()
+        else:
+            save_checkpoint_atomic(earliest, GAMES, tick=tick)
+            print(f"[INFO] 진행 중 상태 저장됨 → {CHECKPOINT_PATH.name}")
+    except Exception as e:
+        print(f"[WARN] 체크포인트 정리/저장 중 오류: {e}")

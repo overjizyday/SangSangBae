@@ -1,0 +1,86 @@
+[
+  {
+    "id": "T01",
+    "name": "서산",
+    "region": "충청",
+    "professional": true
+  },
+  {
+    "id": "T02",
+    "name": "대구",
+    "region": "경상",
+    "professional": true
+  },
+  {
+    "id": "T03",
+    "name": "부산",
+    "region": "경상",
+    "professional": true
+  },
+  {
+    "id": "T04",
+    "name": "광주",
+    "region": "전라",
+    "professional": true
+  },
+  {
+    "id": "T05",
+    "name": "경산",
+    "region": "경상",
+    "professional": true
+  },
+  {
+    "id": "T06",
+    "name": "동대문",
+    "region": "서울",
+    "professional": true
+  },
+  {
+    "id": "T07",
+    "name": "창원",
+    "region": "경상",
+    "professional": true
+  },
+  {
+    "id": "T08",
+    "name": "원주",
+    "region": "강원",
+    "professional": true
+  },
+  {
+    "id": "T09",
+    "name": "부천",
+    "region": "경기",
+    "professional": true
+  },
+  {
+    "id": "T10",
+    "name": "춘천",
+    "region": "강원",
+    "professional": true
+  },
+  {
+    "id": "T11",
+    "name": "울산",
+    "region": "경상",
+    "professional": true
+  },
+  {
+    "id": "T12",
+    "name": "세종",
+    "region": "충청",
+    "professional": true
+  },
+  {
+    "id": "T13",
+    "name": "수원",
+    "region": "경기",
+    "professional": true
+  },
+  {
+    "id": "T14",
+    "name": "제주",
+    "region": "전라",
+    "professional": true
+  }
+]

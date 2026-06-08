@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1970 대회 성적표</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, "Malgun Gothic", sans-serif;
+      background: #f6f8fb;
+      color: #172033;
+    }
+    header {
+      padding: 20px 24px 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .sub {
+      margin-top: 6px;
+      color: #657083;
+      font-size: 13px;
+    }
+    main.grid {
+      padding: 0 16px 24px;
+    }
+    .row {
+      display: grid;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+    .row.top {
+      grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
+    }
+    .row.middle,
+    .row.bottom {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @media (max-width: 1100px) {
+      .row.top,
+      .row.middle,
+      .row.bottom {
+        grid-template-columns: 1fr;
+      }
+    }
+    .panel {
+      padding: 16px;
+      background: #fff;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      min-width: 0;
+    }
+    .panel.wide {
+      grid-column: 1 / -1;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      text-transform: none;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #d8dee8;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #eef3f9;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>1970 대회 성적표</h1>
+    <div class="sub">리그와 각 컵대회의 누적 성적</div>
+  </header>
+  <main class="grid">
+    <section class="row top">
+            <section class="panel wide">
+              <h2>league</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+                </thead>
+                <tbody><tr><td>1</td><td>대구</td><td>42</td><td>25</td><td>0</td><td>17</td><td>217</td><td>177</td><td>40</td><td>75</td></tr><tr><td>2</td><td>서산</td><td>42</td><td>25</td><td>0</td><td>17</td><td>195</td><td>184</td><td>11</td><td>75</td></tr><tr><td>3</td><td>부산</td><td>42</td><td>24</td><td>0</td><td>18</td><td>207</td><td>198</td><td>9</td><td>72</td></tr><tr><td>4</td><td>제주</td><td>42</td><td>23</td><td>0</td><td>19</td><td>210</td><td>169</td><td>41</td><td>69</td></tr><tr><td>5</td><td>동대문</td><td>39</td><td>21</td><td>0</td><td>18</td><td>185</td><td>153</td><td>32</td><td>63</td></tr><tr><td>6</td><td>춘천</td><td>39</td><td>21</td><td>0</td><td>18</td><td>163</td><td>172</td><td>-9</td><td>63</td></tr><tr><td>7</td><td>울산</td><td>39</td><td>20</td><td>0</td><td>19</td><td>157</td><td>153</td><td>4</td><td>60</td></tr><tr><td>8</td><td>창원</td><td>39</td><td>20</td><td>0</td><td>19</td><td>163</td><td>164</td><td>-1</td><td>60</td></tr><tr><td>9</td><td>부천</td><td>39</td><td>20</td><td>0</td><td>19</td><td>165</td><td>167</td><td>-2</td><td>60</td></tr><tr><td>10</td><td>광주</td><td>39</td><td>18</td><td>0</td><td>21</td><td>174</td><td>200</td><td>-26</td><td>54</td></tr><tr><td>11</td><td>수원</td><td>39</td><td>17</td><td>0</td><td>22</td><td>171</td><td>194</td><td>-23</td><td>51</td></tr><tr><td>12</td><td>경산</td><td>39</td><td>16</td><td>0</td><td>23</td><td>177</td><td>172</td><td>5</td><td>48</td></tr><tr><td>13</td><td>세종</td><td>39</td><td>16</td><td>0</td><td>23</td><td>148</td><td>171</td><td>-23</td><td>48</td></tr><tr><td>14</td><td>원주</td><td>39</td><td>13</td><td>0</td><td>26</td><td>172</td><td>230</td><td>-58</td><td>39</td></tr></tbody>
+              </table>
+            </section>
+            </section><section class="row bottom">
+            <section class="panel">
+              <h2>ACL1</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td>1</td><td>타슈켄트</td></tr><tr><td>2</td><td>쿠알라룸푸르</td></tr><tr><td>3</td><td>마슈하드</td></tr><tr><td>4</td><td>도쿄</td></tr><tr><td>5</td><td>암만</td></tr><tr><td>6</td><td>나콘랏차시마</td></tr><tr><td>7</td><td>요코하마</td></tr><tr><td>8</td><td>알라이얀</td></tr><tr><td>9</td><td>사마르칸트</td></tr><tr><td>10</td><td>베이징</td></tr><tr><td>11</td><td>방콕</td></tr><tr><td>12</td><td>알코르</td></tr><tr><td>13</td><td>콘깬</td></tr><tr><td>14</td><td>고베</td></tr><tr><td>15</td><td>샤르자</td></tr><tr><td>16</td><td>시드니</td></tr><tr><td>17</td><td>제다</td></tr><tr><td>18</td><td>푸껫</td></tr><tr><td>19</td><td>테헤란</td></tr><tr><td>20</td><td>상하이</td></tr><tr><td>21</td><td>알아인</td></tr><tr><td>22</td><td>아지만</td></tr><tr><td>23</td><td>오사카</td></tr><tr><td>24</td><td>리야드</td></tr><tr><td>25</td><td>메디나</td></tr><tr><td>26</td><td>알와크라</td></tr><tr><td>27</td><td>메카</td></tr><tr><td>28</td><td>두바이</td></tr><tr><td>29</td><td>파타야</td></tr><tr><td>30</td><td>멜버른</td></tr><tr><td>31</td><td>싱가포르</td></tr><tr><td>32</td><td>하노이</td></tr></tbody>
+              </table>
+            </section>
+            
+            <section class="panel">
+              <h2>ACL2</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td>1</td><td>도하</td></tr><tr><td>2</td><td>푸자이라</td></tr><tr><td>3</td><td>마닐라</td></tr><tr><td>4</td><td>핫야이</td></tr><tr><td>5</td><td>바스라</td></tr><tr><td>6</td><td>부하라</td></tr><tr><td>7</td><td>살랄라</td></tr><tr><td>8</td><td>자카르타</td></tr><tr><td>9</td><td>브리즈번</td></tr><tr><td>10</td><td>조호르바루</td></tr><tr><td>11</td><td>무하라크</td></tr><tr><td>12</td><td>구룡</td></tr><tr><td>13</td><td>움살랄</td></tr><tr><td>14</td><td>담맘</td></tr><tr><td>15</td><td>우드랜즈</td></tr><tr><td>16</td><td>마나마</td></tr><tr><td>17</td><td>광저우</td></tr><tr><td>18</td><td>이스파한</td></tr><tr><td>19</td><td>뉴델리</td></tr><tr><td>20</td><td>탐피니스</td></tr><tr><td>21</td><td>치앙마이</td></tr><tr><td>22</td><td>다낭</td></tr><tr><td>23</td><td>호찌민</td></tr><tr><td>24</td><td>프놈펜</td></tr><tr><td>25</td><td>홍콩</td></tr><tr><td>26</td><td>라스알카이마</td></tr><tr><td>27</td><td>무스카트</td></tr><tr><td>28</td><td>나고야</td></tr><tr><td>29</td><td>선전</td></tr><tr><td>30</td><td>자르카</td></tr><tr><td>31</td><td>아부다비</td></tr><tr><td>32</td><td>바그다드</td></tr></tbody>
+              </table>
+            </section>
+            
+            <section class="panel">
+              <h2>ACL3</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td>1</td><td>투르크메나바트</td></tr><tr><td>2</td><td>딜리</td></tr><tr><td>3</td><td>하이퐁</td></tr><tr><td>4</td><td>평양</td></tr><tr><td>5</td><td>팀푸</td></tr><tr><td>6</td><td>베이루트</td></tr><tr><td>7</td><td>비슈케크</td></tr><tr><td>8</td><td>타이베이</td></tr><tr><td>9</td><td>양곤</td></tr><tr><td>10</td><td>마카오</td></tr><tr><td>11</td><td>뭄바이</td></tr><tr><td>12</td><td>센트럴</td></tr><tr><td>13</td><td>카불</td></tr><tr><td>14</td><td>리파</td></tr><tr><td>15</td><td>세부</td></tr><tr><td>16</td><td>비엔티안</td></tr><tr><td>17</td><td>아시가바트</td></tr><tr><td>18</td><td>두샨베</td></tr><tr><td>19</td><td>코로르</td></tr><tr><td>20</td><td>다마스쿠스</td></tr><tr><td>21</td><td>하갓냐</td></tr><tr><td>22</td><td>가자</td></tr><tr><td>23</td><td>시엠립</td></tr><tr><td>24</td><td>모술</td></tr><tr><td>25</td><td>콜롬보</td></tr><tr><td>26</td><td>가라판</td></tr><tr><td>27</td><td>다카</td></tr><tr><td>28</td><td>카트만두</td></tr><tr><td>29</td><td>쿠웨이트시티</td></tr><tr><td>30</td><td>반다르스리브가완</td></tr><tr><td>31</td><td>울란바토르</td></tr><tr><td>32</td><td>수라바야</td></tr></tbody>
+              </table>
+            </section>
+            </section>
+  </main>
+  <script src="./spoiler_guard.js?v=sync-clock-11" defer></script>
+</body>
+</html>

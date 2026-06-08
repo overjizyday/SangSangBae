@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1970 대회 성적표</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, "Malgun Gothic", sans-serif;
+      background: #f6f8fb;
+      color: #172033;
+    }
+    header {
+      padding: 20px 24px 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .sub {
+      margin-top: 6px;
+      color: #657083;
+      font-size: 13px;
+    }
+    main.grid {
+      padding: 0 16px 24px;
+    }
+    .row {
+      display: grid;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+    .row.top {
+      grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
+    }
+    .row.middle,
+    .row.bottom {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @media (max-width: 1100px) {
+      .row.top,
+      .row.middle,
+      .row.bottom {
+        grid-template-columns: 1fr;
+      }
+    }
+    .panel {
+      padding: 16px;
+      background: #fff;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      min-width: 0;
+    }
+    .panel.wide {
+      grid-column: 1 / -1;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      text-transform: none;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #d8dee8;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #eef3f9;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>1970 대회 성적표</h1>
+    <div class="sub">리그와 각 컵대회의 누적 성적</div>
+  </header>
+  <main class="grid">
+    <section class="row top">
+            <section class="panel wide">
+              <h2>league</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+            </section>
+            </section><section class="row bottom">
+            <section class="panel">
+              <h2>ACL1</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+            </section>
+            
+            <section class="panel">
+              <h2>ACL2</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+            </section>
+            
+            <section class="panel">
+              <h2>ACL3</h2>
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+            </section>
+            </section>
+  </main>
+  <script src="./spoiler_guard.js?v=tick-chunks-1" defer></script>
+</body>
+</html>
