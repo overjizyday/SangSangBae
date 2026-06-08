@@ -54,7 +54,48 @@ def _load_teams(season_dir: Path) -> list[Team]:
 
 def _load_feeds(season_dir: Path) -> list[dict[str, Any]]:
     rows = _read_json(season_dir / "live_feed.json", [])
-    return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+    feeds = [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+    metadata = _load_match_metadata(season_dir)
+    for feed in feeds:
+        match_id = str(feed.get("match_id") or "")
+        if match_id in metadata:
+            for key, value in metadata[match_id].items():
+                feed.setdefault(key, value)
+    return feeds
+
+
+def _load_match_metadata(season_dir: Path) -> dict[str, dict[str, Any]]:
+    metadata: dict[str, dict[str, Any]] = {}
+    for filename in [
+        "schedule.json",
+        "local_cup.json",
+        "championship.json",
+        "fa_cup.json",
+        "super_cup.json",
+        "acl.json",
+    ]:
+        payload = _read_json(season_dir / filename, None)
+        if isinstance(payload, list):
+            matches = payload
+        elif isinstance(payload, dict):
+            matches = payload.get("matches", [])
+        else:
+            matches = []
+        if not isinstance(matches, list):
+            continue
+        for match in matches:
+            if not isinstance(match, dict):
+                continue
+            match_id = str(match.get("id") or match.get("match_id") or "")
+            if not match_id:
+                continue
+            metadata[match_id] = {
+                "match_no": match.get("match_no"),
+                "region": match.get("region"),
+                "group": match.get("group"),
+                "leg": match.get("leg"),
+            }
+    return metadata
 
 
 def _day_sort_key(feed: dict[str, Any]) -> tuple[int, int, int, str]:
@@ -288,6 +329,10 @@ def _schedule_rows(feeds: list[dict[str, Any]], completion_order: list[str]) -> 
             "round": feed.get("round"),
             "week": int(feed.get("week") or 0),
             "day": str(feed.get("day") or ""),
+            "match_no": feed.get("match_no"),
+            "region": feed.get("region"),
+            "group": feed.get("group"),
+            "leg": feed.get("leg"),
             "home_team_id": str(feed.get("home_team_id") or ""),
             "away_team_id": str(feed.get("away_team_id") or ""),
             "home_score": int(feed.get("home_score") or 0),

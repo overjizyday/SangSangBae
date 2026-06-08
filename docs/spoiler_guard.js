@@ -630,16 +630,77 @@ function guardCalendarFromReplay(replay, snapshot) {
   });
 }
 
+function groupNameForMatch(match) {
+  const explicit = String(match.group || "").trim();
+  if (explicit) return explicit;
+  const id = String(match.match_id || "");
+  const found = id.match(/-G([A-Z])-R/i);
+  return found ? found[1].toUpperCase() : "A";
+}
+
+function renderAclGroupStandingsFromReplay(league, replay, snapshot, teamNames) {
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
+  const groupMatches = (replay?.schedule || []).filter((match) => String(match.stage || "") === `${league}_group`);
+  if (!groupMatches.length) return `<p class="pending">No group matches available.</p>`;
+  const revealAfter = Math.min(...groupMatches.map((match) => Number(match.reveal_after_count || 0)));
+  if (completedCount < revealAfter) return `<p class="pending">Group stage fixtures are not confirmed yet.</p>`;
+
+  const groups = new Map();
+  for (const match of groupMatches) {
+    const group = groupNameForMatch(match);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(match);
+  }
+
+  return Array.from(groups.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([group, matches]) => {
+      const teamIds = Array.from(new Set(matches.flatMap((match) => [
+        String(match.home_team_id || ""),
+        String(match.away_team_id || ""),
+      ]).filter(Boolean)));
+      const completedMatches = matches
+        .filter((match) => completed.has(String(match.match_id || "")))
+        .map(resultRow);
+      const rows = calculateStandings(teamIds, completedMatches, teamNames);
+      return `<section class="cup-group"><h3>Group ${group}</h3>${standingsTable(rows, false)}</section>`;
+    })
+    .join("");
+}
+
+function guardStandingsFromReplay(snapshot, teams, replay) {
+  const teamNames = new Map((Array.isArray(teams) ? teams : []).map((team) => [String(team.id), String(team.name || team.id)]));
+  extendAclTeamNames(teamNames, replay?.acl || {});
+  document.querySelectorAll("main.grid .panel").forEach((panel) => {
+    const title = panel.querySelector("h2");
+    if (!title) return;
+    const competition = title.textContent.trim();
+    panel.querySelector("table")?.remove();
+    panel.querySelectorAll(".cup-tabs, .cup-view, .pending, .cup-group").forEach((node) => node.remove());
+    if (competition === "league") {
+      panel.insertAdjacentHTML("beforeend", renderReplayStandingsTable(snapshot?.standings?.league || [], teamNames));
+      return;
+    }
+    if (competition === "ACL1" || competition === "ACL2" || competition === "ACL3") {
+      panel.insertAdjacentHTML("beforeend", renderAclGroupStandingsFromReplay(competition, replay, snapshot, teamNames));
+      return;
+    }
+    panel.insertAdjacentHTML("beforeend", `<p class="pending">Standings for this competition are not available in the current replay snapshot.</p>`);
+  });
+}
+
 async function main() {
-  const [manifest, teams] = await Promise.all([
+  const [manifest, teams, acl] = await Promise.all([
     fetch("./replay_manifest.json", { cache: "no-store" }).then((r) => r.json()),
     fetch("./teams.json", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+    fetch("./acl.json", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
   ]);
   const [schedule, completionOrder] = await Promise.all([
     fetch(`./${manifest.schedule_path || "replay_schedule.json"}`, { cache: "no-store" }).then((r) => r.json()),
     fetch(`./${manifest.completion_order_path || "replay_completion_order.json"}`, { cache: "no-store" }).then((r) => r.json()),
   ]);
-  const replay = { ...manifest, schedule, completion_order: completionOrder };
+  const replay = { ...manifest, schedule, completion_order: completionOrder, acl };
   const chunkCache = new Map();
   async function loadSnapshot() {
     const chunkInfo = selectChunkInfo(manifest);
@@ -653,7 +714,7 @@ async function main() {
   const render = async () => {
     const snapshot = await loadSnapshot();
     if (document.querySelector(".match")) guardCalendarFromReplay(replay, snapshot);
-    if (document.querySelector("main.grid")) guardStandingsFromReplay(snapshot, teams);
+    if (document.querySelector("main.grid")) guardStandingsFromReplay(snapshot, teams, replay);
   };
   await render();
   setInterval(() => render().catch((err) => console.error(err)), Number(replay.tick_seconds || 2) * 1000);
