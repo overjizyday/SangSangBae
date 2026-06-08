@@ -1,1 +1,185 @@
-{"version":1,"tick_seconds":2,"rest_seconds_after_day":60,"replay_started_at":"2026-06-08T14:15:20.835447+00:00","total_ticks":9110,"total_duration_seconds":26200,"generated_at":"2026-06-08T14:15:35.892727+00:00","ticks_per_chunk":500,"chunks":[{"chunk":0,"path":"replay_ticks/replay_ticks_000.json","start_tick":0,"end_tick":499,"start_run_at":"2026-06-08T14:15:20.835447+00:00","end_run_at":"2026-06-08T14:38:58.835447+00:00","count":500},{"chunk":1,"path":"replay_ticks/replay_ticks_001.json","start_tick":500,"end_tick":999,"start_run_at":"2026-06-08T14:39:00.835447+00:00","end_run_at":"2026-06-08T15:02:38.835447+00:00","count":500},{"chunk":2,"path":"replay_ticks/replay_ticks_002.json","start_tick":1000,"end_tick":1499,"start_run_at":"2026-06-08T15:02:40.835447+00:00","end_run_at":"2026-06-08T15:26:18.835447+00:00","count":500},{"chunk":3,"path":"replay_ticks/replay_ticks_003.json","start_tick":1500,"end_tick":1999,"start_run_at":"2026-06-08T15:26:20.835447+00:00","end_run_at":"2026-06-08T15:49:58.835447+00:00","count":500},{"chunk":4,"path":"replay_ticks/replay_ticks_004.json","start_tick":2000,"end_tick":2499,"start_run_at":"2026-06-08T15:50:00.835447+00:00","end_run_at":"2026-06-08T16:14:38.835447+00:00","count":500},{"chunk":5,"path":"replay_ticks/replay_ticks_005.json","start_tick":2500,"end_tick":2999,"start_run_at":"2026-06-08T16:14:40.835447+00:00","end_run_at":"2026-06-08T16:38:18.835447+00:00","count":500},{"chunk":6,"path":"replay_ticks/replay_ticks_006.json","start_tick":3000,"end_tick":3499,"start_run_at":"2026-06-08T16:38:20.835447+00:00","end_run_at":"2026-06-08T17:01:58.835447+00:00","count":500},{"chunk":7,"path":"replay_ticks/replay_ticks_007.json","start_tick":3500,"end_tick":3999,"start_run_at":"2026-06-08T17:02:00.835447+00:00","end_run_at":"2026-06-08T17:26:38.835447+00:00","count":500},{"chunk":8,"path":"replay_ticks/replay_ticks_008.json","start_tick":4000,"end_tick":4499,"start_run_at":"2026-06-08T17:26:40.835447+00:00","end_run_at":"2026-06-08T17:50:18.835447+00:00","count":500},{"chunk":9,"path":"replay_ticks/replay_ticks_009.json","start_tick":4500,"end_tick":4999,"start_run_at":"2026-06-08T17:50:20.835447+00:00","end_run_at":"2026-06-08T18:13:58.835447+00:00","count":500},{"chunk":10,"path":"replay_ticks/replay_ticks_010.json","start_tick":5000,"end_tick":5499,"start_run_at":"2026-06-08T18:14:00.835447+00:00","end_run_at":"2026-06-08T18:37:38.835447+00:00","count":500},{"chunk":11,"path":"replay_ticks/replay_ticks_011.json","start_tick":5500,"end_tick":5999,"start_run_at":"2026-06-08T18:37:40.835447+00:00","end_run_at":"2026-06-08T19:02:18.835447+00:00","count":500},{"chunk":12,"path":"replay_ticks/replay_ticks_012.json","start_tick":6000,"end_tick":6499,"start_run_at":"2026-06-08T19:02:20.835447+00:00","end_run_at":"2026-06-08T19:25:58.835447+00:00","count":500},{"chunk":13,"path":"replay_ticks/replay_ticks_013.json","start_tick":6500,"end_tick":6999,"start_run_at":"2026-06-08T19:26:00.835447+00:00","end_run_at":"2026-06-08T19:49:38.835447+00:00","count":500},{"chunk":14,"path":"replay_ticks/replay_ticks_014.json","start_tick":7000,"end_tick":7499,"start_run_at":"2026-06-08T19:49:40.835447+00:00","end_run_at":"2026-06-08T20:14:18.835447+00:00","count":500},{"chunk":15,"path":"replay_ticks/replay_ticks_015.json","start_tick":7500,"end_tick":7999,"start_run_at":"2026-06-08T20:14:20.835447+00:00","end_run_at":"2026-06-08T20:38:58.835447+00:00","count":500},{"chunk":16,"path":"replay_ticks/replay_ticks_016.json","start_tick":8000,"end_tick":8499,"start_run_at":"2026-06-08T20:39:00.835447+00:00","end_run_at":"2026-06-08T21:03:38.835447+00:00","count":500},{"chunk":17,"path":"replay_ticks/replay_ticks_017.json","start_tick":8500,"end_tick":8999,"start_run_at":"2026-06-08T21:03:40.835447+00:00","end_run_at":"2026-06-08T21:27:18.835447+00:00","count":500},{"chunk":18,"path":"replay_ticks/replay_ticks_018.json","start_tick":9000,"end_tick":9110,"start_run_at":"2026-06-08T21:27:20.835447+00:00","end_run_at":"2026-06-08T21:32:00.835447+00:00","count":111}],"schedule_path":"replay_schedule.json","completion_order_path":"replay_completion_order.json"}
+{
+  "version": 1,
+  "tick_seconds": 2,
+  "rest_seconds_after_day": 60,
+  "replay_started_at": "2026-06-08T13:31:01.419500+00:00",
+  "total_ticks": 9110,
+  "total_duration_seconds": 26200,
+  "generated_at": "2026-06-08T14:15:35.892727+00:00",
+  "ticks_per_chunk": 500,
+  "chunks": [
+    {
+      "chunk": 0,
+      "path": "replay_ticks/replay_ticks_000.json",
+      "start_tick": 0,
+      "end_tick": 499,
+      "start_run_at": "2026-06-08T14:15:20.835447+00:00",
+      "end_run_at": "2026-06-08T14:38:58.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 1,
+      "path": "replay_ticks/replay_ticks_001.json",
+      "start_tick": 500,
+      "end_tick": 999,
+      "start_run_at": "2026-06-08T14:39:00.835447+00:00",
+      "end_run_at": "2026-06-08T15:02:38.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 2,
+      "path": "replay_ticks/replay_ticks_002.json",
+      "start_tick": 1000,
+      "end_tick": 1499,
+      "start_run_at": "2026-06-08T15:02:40.835447+00:00",
+      "end_run_at": "2026-06-08T15:26:18.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 3,
+      "path": "replay_ticks/replay_ticks_003.json",
+      "start_tick": 1500,
+      "end_tick": 1999,
+      "start_run_at": "2026-06-08T15:26:20.835447+00:00",
+      "end_run_at": "2026-06-08T15:49:58.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 4,
+      "path": "replay_ticks/replay_ticks_004.json",
+      "start_tick": 2000,
+      "end_tick": 2499,
+      "start_run_at": "2026-06-08T15:50:00.835447+00:00",
+      "end_run_at": "2026-06-08T16:14:38.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 5,
+      "path": "replay_ticks/replay_ticks_005.json",
+      "start_tick": 2500,
+      "end_tick": 2999,
+      "start_run_at": "2026-06-08T16:14:40.835447+00:00",
+      "end_run_at": "2026-06-08T16:38:18.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 6,
+      "path": "replay_ticks/replay_ticks_006.json",
+      "start_tick": 3000,
+      "end_tick": 3499,
+      "start_run_at": "2026-06-08T16:38:20.835447+00:00",
+      "end_run_at": "2026-06-08T17:01:58.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 7,
+      "path": "replay_ticks/replay_ticks_007.json",
+      "start_tick": 3500,
+      "end_tick": 3999,
+      "start_run_at": "2026-06-08T17:02:00.835447+00:00",
+      "end_run_at": "2026-06-08T17:26:38.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 8,
+      "path": "replay_ticks/replay_ticks_008.json",
+      "start_tick": 4000,
+      "end_tick": 4499,
+      "start_run_at": "2026-06-08T17:26:40.835447+00:00",
+      "end_run_at": "2026-06-08T17:50:18.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 9,
+      "path": "replay_ticks/replay_ticks_009.json",
+      "start_tick": 4500,
+      "end_tick": 4999,
+      "start_run_at": "2026-06-08T17:50:20.835447+00:00",
+      "end_run_at": "2026-06-08T18:13:58.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 10,
+      "path": "replay_ticks/replay_ticks_010.json",
+      "start_tick": 5000,
+      "end_tick": 5499,
+      "start_run_at": "2026-06-08T18:14:00.835447+00:00",
+      "end_run_at": "2026-06-08T18:37:38.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 11,
+      "path": "replay_ticks/replay_ticks_011.json",
+      "start_tick": 5500,
+      "end_tick": 5999,
+      "start_run_at": "2026-06-08T18:37:40.835447+00:00",
+      "end_run_at": "2026-06-08T19:02:18.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 12,
+      "path": "replay_ticks/replay_ticks_012.json",
+      "start_tick": 6000,
+      "end_tick": 6499,
+      "start_run_at": "2026-06-08T19:02:20.835447+00:00",
+      "end_run_at": "2026-06-08T19:25:58.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 13,
+      "path": "replay_ticks/replay_ticks_013.json",
+      "start_tick": 6500,
+      "end_tick": 6999,
+      "start_run_at": "2026-06-08T19:26:00.835447+00:00",
+      "end_run_at": "2026-06-08T19:49:38.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 14,
+      "path": "replay_ticks/replay_ticks_014.json",
+      "start_tick": 7000,
+      "end_tick": 7499,
+      "start_run_at": "2026-06-08T19:49:40.835447+00:00",
+      "end_run_at": "2026-06-08T20:14:18.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 15,
+      "path": "replay_ticks/replay_ticks_015.json",
+      "start_tick": 7500,
+      "end_tick": 7999,
+      "start_run_at": "2026-06-08T20:14:20.835447+00:00",
+      "end_run_at": "2026-06-08T20:38:58.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 16,
+      "path": "replay_ticks/replay_ticks_016.json",
+      "start_tick": 8000,
+      "end_tick": 8499,
+      "start_run_at": "2026-06-08T20:39:00.835447+00:00",
+      "end_run_at": "2026-06-08T21:03:38.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 17,
+      "path": "replay_ticks/replay_ticks_017.json",
+      "start_tick": 8500,
+      "end_tick": 8999,
+      "start_run_at": "2026-06-08T21:03:40.835447+00:00",
+      "end_run_at": "2026-06-08T21:27:18.835447+00:00",
+      "count": 500
+    },
+    {
+      "chunk": 18,
+      "path": "replay_ticks/replay_ticks_018.json",
+      "start_tick": 9000,
+      "end_tick": 9110,
+      "start_run_at": "2026-06-08T21:27:20.835447+00:00",
+      "end_run_at": "2026-06-08T21:32:00.835447+00:00",
+      "count": 111
+    }
+  ],
+  "schedule_path": "replay_schedule.json",
+  "completion_order_path": "replay_completion_order.json"
+}
