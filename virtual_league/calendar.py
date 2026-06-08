@@ -130,8 +130,26 @@ def _assign_local_cup_regional_qualifier_days(matches: list[Match], rng: random.
         team_ids = {team_id for match in group_matches for team_id in [match.home_team_id, match.away_team_id]}
         rounds_needed = _infer_round_count(len(team_ids), len(group_matches))
         round_days = _local_cup_regional_round_days(rounds_needed, rng)
-        for idx, match in enumerate(group_matches):
-            match.day = round_days[idx % len(round_days)]
+        rounds = _reconstruct_rounds(group_matches)
+        for round_idx, round_matches in enumerate(rounds):
+            day = round_days[round_idx % len(round_days)]
+            for match in round_matches:
+                match.day = day
+
+
+def _reconstruct_rounds(matches: list[Match]) -> list[list[Match]]:
+    rounds: list[list[Match]] = []
+    for match in matches:
+        placed = False
+        for round_matches in rounds:
+            teams_in_round = {tid for m in round_matches for tid in [m.home_team_id, m.away_team_id]}
+            if match.home_team_id not in teams_in_round and match.away_team_id not in teams_in_round:
+                round_matches.append(match)
+                placed = True
+                break
+        if not placed:
+            rounds.append([match])
+    return rounds
 
 
 def _infer_round_count(team_count: int, match_count: int) -> int:

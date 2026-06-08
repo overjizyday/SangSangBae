@@ -231,7 +231,7 @@ def generate_league_final_round(standings: Sequence[object]) -> list[Match]:
             Match(
                 id=f"L-FR-{idx:03d}",
                 competition="league",
-                stage="regular",
+                stage="final_round",
                 round=round_no,
                 week=31,
                 home_team_id=home,

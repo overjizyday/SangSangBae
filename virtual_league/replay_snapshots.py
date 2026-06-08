@@ -284,6 +284,7 @@ def _stage_order(stage: str) -> int:
         "qf": 2,
         "sf": 3,
         "final": 4,
+        "final_round": 1,
     }
     return order.get(phase, 0)
 
