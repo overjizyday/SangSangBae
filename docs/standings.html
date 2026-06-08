@@ -136,12 +136,6 @@
             
             <section class="panel">
               <h2>super_cup</h2>
-              
-              <div class="view-toggle" role="group" aria-label="super_cup 보기">
-                <button class="toggle-btn active" type="button" data-target="super_cup-rank">순위</button>
-                <button class="toggle-btn" type="button" data-target="super_cup-knockout" disabled>토너먼트</button>
-              </div>
-            
               <div class="view-panel" id="super_cup-rank">
                 
               <table>
@@ -152,22 +146,16 @@
               </table>
         
               </div>
-              
-              <div class="view-panel" id="super_cup-knockout" hidden>
-                
-              </div>
-            
             </section>
             </section><section class="row middle">
             <section class="panel">
               <h2>local_cup</h2>
-              
               <div class="view-toggle" role="group" aria-label="local_cup 보기">
-                <button class="toggle-btn active" type="button" data-target="local_cup-rank">순위</button>
+                <button class="toggle-btn active" type="button" data-target="local_cup-regional">지역예선순위</button>
+                <button class="toggle-btn" type="button" data-target="local_cup-groups" disabled>조별예선순위</button>
                 <button class="toggle-btn" type="button" data-target="local_cup-knockout">토너먼트</button>
               </div>
-            
-              <div class="view-panel" id="local_cup-rank">
+              <div class="view-panel" id="local_cup-regional">
                 
               <table>
                 <thead>
@@ -177,7 +165,9 @@
               </table>
         
               </div>
-              
+              <div class="view-panel" id="local_cup-groups" hidden>
+                <p class="pending">조별예선은 지역예선 종료 후 표시됩니다.</p>
+              </div>
               <div class="view-panel" id="local_cup-knockout" hidden>
                 
               <table>
@@ -188,29 +178,11 @@
               </table>
         
               </div>
-            
             </section>
             
             <section class="panel">
               <h2>championship</h2>
-              
-              <div class="view-toggle" role="group" aria-label="championship 보기">
-                <button class="toggle-btn active" type="button" data-target="championship-rank">순위</button>
-                <button class="toggle-btn" type="button" data-target="championship-knockout">토너먼트</button>
-              </div>
-            
-              <div class="view-panel" id="championship-rank">
-                
-              <table>
-                <thead>
-                  <tr><th>순위</th><th>팀</th></tr>
-                </thead>
-                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
-              </table>
-        
-              </div>
-              
-              <div class="view-panel" id="championship-knockout" hidden>
+              <div class="view-panel" id="championship-knockout">
                 
               <table>
                 <thead>
@@ -220,7 +192,6 @@
               </table>
         
               </div>
-            
             </section>
             </section><section class="row bottom">
             <section class="panel">

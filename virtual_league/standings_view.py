@@ -511,6 +511,46 @@ def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]])
         section_class = "panel wide" if name == "league" else "panel"
         knockout_rows = tables.get(f"__knockout__{name}", [])
         has_knockout = bool(knockout_rows)
+        if name == "championship":
+            body = render_knockout_table(knockout_rows) if has_knockout else '<p class="pending">토너먼트 일정이 없습니다.</p>'
+            return f"""
+            <section class="{section_class}">
+              <h2>{escape(name)}</h2>
+              <div class="view-panel" id="{escape(name)}-knockout">
+                {body}
+              </div>
+            </section>
+            """
+        if name == "super_cup":
+            return f"""
+            <section class="{section_class}">
+              <h2>{escape(name)}</h2>
+              <div class="view-panel" id="{escape(name)}-rank">
+                {render_rank_table(name, rows)}
+              </div>
+            </section>
+            """
+        if name == "local_cup":
+            knockout_body = render_knockout_table(knockout_rows) if has_knockout else ""
+            return f"""
+            <section class="{section_class}">
+              <h2>{escape(name)}</h2>
+              <div class="view-toggle" role="group" aria-label="{escape(name)} 보기">
+                <button class="toggle-btn active" type="button" data-target="{escape(name)}-regional">지역예선순위</button>
+                <button class="toggle-btn" type="button" data-target="{escape(name)}-groups" disabled>조별예선순위</button>
+                <button class="toggle-btn" type="button" data-target="{escape(name)}-knockout"{"" if has_knockout else " disabled"}>토너먼트</button>
+              </div>
+              <div class="view-panel" id="{escape(name)}-regional">
+                {render_rank_table(name, rows)}
+              </div>
+              <div class="view-panel" id="{escape(name)}-groups" hidden>
+                <p class="pending">조별예선은 지역예선 종료 후 표시됩니다.</p>
+              </div>
+              <div class="view-panel" id="{escape(name)}-knockout" hidden>
+                {knockout_body}
+              </div>
+            </section>
+            """
         rank_label = "조별리그 순위" if name.startswith("ACL") else "순위"
         controls = ""
         knockout_view = ""

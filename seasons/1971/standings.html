@@ -136,12 +136,6 @@
             
             <section class="panel">
               <h2>super_cup</h2>
-              
-              <div class="view-toggle" role="group" aria-label="super_cup 보기">
-                <button class="toggle-btn active" type="button" data-target="super_cup-rank">순위</button>
-                <button class="toggle-btn" type="button" data-target="super_cup-knockout" disabled>토너먼트</button>
-              </div>
-            
               <div class="view-panel" id="super_cup-rank">
                 
               <table>
@@ -152,22 +146,16 @@
               </table>
         
               </div>
-              
-              <div class="view-panel" id="super_cup-knockout" hidden>
-                
-              </div>
-            
             </section>
             </section><section class="row middle">
             <section class="panel">
               <h2>local_cup</h2>
-              
               <div class="view-toggle" role="group" aria-label="local_cup 보기">
-                <button class="toggle-btn active" type="button" data-target="local_cup-rank">순위</button>
+                <button class="toggle-btn active" type="button" data-target="local_cup-regional">지역예선순위</button>
+                <button class="toggle-btn" type="button" data-target="local_cup-groups" disabled>조별예선순위</button>
                 <button class="toggle-btn" type="button" data-target="local_cup-knockout">토너먼트</button>
               </div>
-            
-              <div class="view-panel" id="local_cup-rank">
+              <div class="view-panel" id="local_cup-regional">
                 
               <table>
                 <thead>
@@ -177,50 +165,33 @@
               </table>
         
               </div>
-              
+              <div class="view-panel" id="local_cup-groups" hidden>
+                <p class="pending">조별예선은 지역예선 종료 후 표시됩니다.</p>
+              </div>
               <div class="view-panel" id="local_cup-knockout" hidden>
                 
               <table>
                 <thead>
                   <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
                 </thead>
-                <tbody><tr><td>PO</td><td>통합PO</td><td>1</td><td>원주 6-4 창원</td><td></td><td>원주</td></tr><tr><td>QF</td><td></td><td>1</td><td>대구 4-2 서산</td><td></td><td>대구</td></tr><tr><td>QF</td><td></td><td>3</td><td>동대문 5-0 경산</td><td></td><td>동대문</td></tr><tr><td>QF</td><td></td><td>5</td><td>부산 8-3 수원</td><td></td><td>부산</td></tr><tr><td>QF</td><td></td><td>7</td><td>부천 11-9 원주</td><td></td><td>부천</td></tr><tr><td>QF</td><td></td><td>2</td><td>서산 4-8 대구</td><td></td><td>대구</td></tr><tr><td>QF</td><td></td><td>4</td><td>경산 5-2 동대문</td><td></td><td>경산</td></tr><tr><td>QF</td><td></td><td>6</td><td>수원 4-3 부산</td><td></td><td>수원</td></tr><tr><td>QF</td><td></td><td>8</td><td>원주 5-9 부천</td><td></td><td>부천</td></tr><tr><td>SF</td><td></td><td>1</td><td>대구 3-2 부천</td><td></td><td>대구</td></tr><tr><td>SF</td><td></td><td>3</td><td>동대문 13-11 부산</td><td></td><td>동대문</td></tr><tr><td>SF</td><td></td><td>2</td><td>부천 5-5 대구</td><td></td><td>대구</td></tr><tr><td>SF</td><td></td><td>4</td><td>부산 4-6 동대문</td><td></td><td>동대문</td></tr><tr><td>Final</td><td></td><td>1</td><td>대구 3-2 동대문</td><td></td><td>대구</td></tr></tbody>
+                <tbody><tr><td>PO</td><td>통합PO</td><td>1</td><td>원주 6-4 창원</td><td></td><td>원주</td></tr><tr><td>QF</td><td></td><td>1</td><td>대구 4-2 서산</td><td></td><td>대구</td></tr><tr><td>QF</td><td></td><td>3</td><td>동대문 5-0 경산</td><td></td><td>동대문</td></tr><tr><td>QF</td><td></td><td>5</td><td>부산 8-3 수원</td><td></td><td>부산</td></tr><tr><td>QF</td><td></td><td>7</td><td>부천 11-9 원주</td><td></td><td>부천</td></tr><tr><td>QF</td><td></td><td>2</td><td>서산 4-8 대구</td><td></td><td>대구</td></tr><tr><td>QF</td><td></td><td>4</td><td>경산 5-2 동대문</td><td></td><td>동대문</td></tr><tr><td>QF</td><td></td><td>6</td><td>수원 4-3 부산</td><td></td><td>부산</td></tr><tr><td>QF</td><td></td><td>8</td><td>원주 5-9 부천</td><td></td><td>부천</td></tr><tr><td>SF</td><td></td><td>1</td><td>대구 3-2 부천</td><td></td><td>대구</td></tr><tr><td>SF</td><td></td><td>3</td><td>동대문 13-11 부산</td><td></td><td>동대문</td></tr><tr><td>SF</td><td></td><td>2</td><td>부천 5-5 대구</td><td></td><td>대구</td></tr><tr><td>SF</td><td></td><td>4</td><td>부산 4-6 동대문</td><td></td><td>동대문</td></tr><tr><td>Final</td><td></td><td>1</td><td>대구 3-2 동대문</td><td></td><td>대구</td></tr></tbody>
               </table>
         
               </div>
-            
             </section>
             
             <section class="panel">
               <h2>championship</h2>
-              
-              <div class="view-toggle" role="group" aria-label="championship 보기">
-                <button class="toggle-btn active" type="button" data-target="championship-rank">순위</button>
-                <button class="toggle-btn" type="button" data-target="championship-knockout">토너먼트</button>
-              </div>
-            
-              <div class="view-panel" id="championship-rank">
-                
-              <table>
-                <thead>
-                  <tr><th>순위</th><th>팀</th></tr>
-                </thead>
-                <tbody><tr><td>1</td><td>원주</td></tr><tr><td>2</td><td>동대문</td></tr><tr><td>3</td><td>서산</td></tr><tr><td>4</td><td>울산</td></tr><tr><td>5</td><td>광주</td></tr><tr><td>6</td><td>부산</td></tr><tr><td>7</td><td>대구</td></tr><tr><td>8</td><td>경산</td></tr><tr><td>9</td><td>세종</td></tr><tr><td>10</td><td>춘천</td></tr><tr><td>11</td><td>창원</td></tr><tr><td>12</td><td>부천</td></tr><tr><td>13</td><td>수원</td></tr><tr><td>14</td><td>제주</td></tr></tbody>
-              </table>
-        
-              </div>
-              
-              <div class="view-panel" id="championship-knockout" hidden>
+              <div class="view-panel" id="championship-knockout">
                 
               <table>
                 <thead>
                   <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
                 </thead>
-                <tbody><tr><td>R1</td><td></td><td>1</td><td>부산 10-2 제주</td><td></td><td>부산</td></tr><tr><td>R1</td><td></td><td>2</td><td>동대문 3-2 춘천</td><td></td><td>동대문</td></tr><tr><td>R1</td><td></td><td>3</td><td>울산 6-4 창원</td><td></td><td>울산</td></tr><tr><td>R1</td><td></td><td>4</td><td>부천 4-7 광주</td><td></td><td>광주</td></tr><tr><td>R1</td><td></td><td>5</td><td>수원 0-7 경산</td><td></td><td>경산</td></tr><tr><td>R1</td><td></td><td>6</td><td>세종 9-10 원주</td><td></td><td>원주</td></tr><tr><td>QF</td><td></td><td>1</td><td>대구 2-7 서산</td><td>서산 3-6 대구</td><td>대구</td></tr><tr><td>QF</td><td></td><td>2</td><td>부산 4-6 동대문</td><td>동대문 4-4 부산</td><td>동대문</td></tr><tr><td>QF</td><td></td><td>3</td><td>울산 4-8 광주</td><td>광주 3-9 울산</td><td>울산</td></tr><tr><td>QF</td><td></td><td>4</td><td>경산 4-8 원주</td><td>원주 4-4 경산</td><td>원주</td></tr><tr><td>SF</td><td></td><td>1</td><td>서산 4-9 원주</td><td>원주 4-2 서산</td><td>원주</td></tr><tr><td>SF</td><td></td><td>2</td><td>동대문 5-0 울산</td><td>울산 1-4 동대문</td><td>동대문</td></tr><tr><td>Final</td><td></td><td>1</td><td>원주 5-0 동대문</td><td></td><td>원주</td></tr></tbody>
+                <tbody><tr><td>R1</td><td></td><td>1</td><td>부산 10-2 제주</td><td></td><td>부산</td></tr><tr><td>R1</td><td></td><td>2</td><td>동대문 3-2 춘천</td><td></td><td>동대문</td></tr><tr><td>R1</td><td></td><td>3</td><td>울산 6-4 창원</td><td></td><td>울산</td></tr><tr><td>R1</td><td></td><td>4</td><td>부천 4-7 광주</td><td></td><td>광주</td></tr><tr><td>R1</td><td></td><td>5</td><td>수원 0-7 경산</td><td></td><td>경산</td></tr><tr><td>R1</td><td></td><td>6</td><td>세종 9-10 원주</td><td></td><td>원주</td></tr><tr><td>QF</td><td></td><td>1</td><td>대구 2-7 서산</td><td>서산 3-6 대구</td><td>서산</td></tr><tr><td>QF</td><td></td><td>2</td><td>부산 4-6 동대문</td><td>동대문 4-4 부산</td><td>동대문</td></tr><tr><td>QF</td><td></td><td>3</td><td>울산 4-8 광주</td><td>광주 3-9 울산</td><td>울산</td></tr><tr><td>QF</td><td></td><td>4</td><td>경산 4-8 원주</td><td>원주 4-4 경산</td><td>원주</td></tr><tr><td>SF</td><td></td><td>1</td><td>서산 4-9 원주</td><td>원주 4-2 서산</td><td>원주</td></tr><tr><td>SF</td><td></td><td>2</td><td>동대문 5-0 울산</td><td>울산 1-4 동대문</td><td>동대문</td></tr><tr><td>Final</td><td></td><td>1</td><td>원주 5-0 동대문</td><td></td><td>원주</td></tr></tbody>
               </table>
         
               </div>
-            
             </section>
             </section><section class="row bottom">
             <section class="panel">
@@ -269,7 +240,7 @@
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
-                <tbody><tr><td>1</td><td>광저우</td></tr><tr><td>2</td><td>뉴델리</td></tr><tr><td>3</td><td>시드니</td></tr><tr><td>4</td><td>움살랄</td></tr><tr><td>5</td><td>페낭</td></tr><tr><td>6</td><td>하노이</td></tr><tr><td>7</td><td>마나마</td></tr><tr><td>8</td><td>이스파한</td></tr><tr><td>9</td><td>시엠립</td></tr><tr><td>10</td><td>무하라크</td></tr><tr><td>11</td><td>모술</td></tr><tr><td>12</td><td>세부</td></tr><tr><td>13</td><td>아지만</td></tr><tr><td>14</td><td>알아인</td></tr><tr><td>15</td><td>춘천</td></tr><tr><td>16</td><td>담맘</td></tr><tr><td>17</td><td>탐피니스</td></tr><tr><td>18</td><td>호찌민</td></tr><tr><td>19</td><td>딜리</td></tr><tr><td>20</td><td>무스카트</td></tr><tr><td>21</td><td>홍콩</td></tr><tr><td>22</td><td>페르가나</td></tr><tr><td>23</td><td>우드랜즈</td></tr><tr><td>24</td><td>파타야</td></tr><tr><td>25</td><td>자르카</td></tr><tr><td>26</td><td>프놈펜</td></tr><tr><td>27</td><td>푸껫</td></tr><tr><td>28</td><td>바스라</td></tr><tr><td>29</td><td>바그다드</td></tr><tr><td>30</td><td>나고야</td></tr><tr><td>31</td><td>투르크메나바트</td></tr><tr><td>32</td><td>부하라</td></tr></tbody>
+                <tbody><tr><td>1</td><td>광저우</td></tr><tr><td>2</td><td>뉴델리</td></tr><tr><td>3</td><td>시드니</td></tr><tr><td>4</td><td>움살랄</td></tr><tr><td>5</td><td>마나마</td></tr><tr><td>6</td><td>이스파한</td></tr><tr><td>7</td><td>시엠립</td></tr><tr><td>8</td><td>무하라크</td></tr><tr><td>9</td><td>모술</td></tr><tr><td>10</td><td>세부</td></tr><tr><td>11</td><td>페낭</td></tr><tr><td>12</td><td>하노이</td></tr><tr><td>13</td><td>아지만</td></tr><tr><td>14</td><td>알아인</td></tr><tr><td>15</td><td>춘천</td></tr><tr><td>16</td><td>담맘</td></tr><tr><td>17</td><td>탐피니스</td></tr><tr><td>18</td><td>호찌민</td></tr><tr><td>19</td><td>딜리</td></tr><tr><td>20</td><td>무스카트</td></tr><tr><td>21</td><td>홍콩</td></tr><tr><td>22</td><td>페르가나</td></tr><tr><td>23</td><td>우드랜즈</td></tr><tr><td>24</td><td>파타야</td></tr><tr><td>25</td><td>자르카</td></tr><tr><td>26</td><td>프놈펜</td></tr><tr><td>27</td><td>푸껫</td></tr><tr><td>28</td><td>바스라</td></tr><tr><td>29</td><td>바그다드</td></tr><tr><td>30</td><td>나고야</td></tr><tr><td>31</td><td>투르크메나바트</td></tr><tr><td>32</td><td>부하라</td></tr></tbody>
               </table>
         
               </div>
@@ -280,7 +251,7 @@
                 <thead>
                   <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
                 </thead>
-                <tbody><tr><td>PO</td><td>east</td><td>1</td><td>세부 1-0 멜버른</td><td></td><td>세부</td></tr><tr><td>PO</td><td>east</td><td>2</td><td>시엠립 8-6 다낭</td><td></td><td>시엠립</td></tr><tr><td>PO</td><td>west</td><td>1</td><td>무하라크 4-1 뭄바이</td><td></td><td>무하라크</td></tr><tr><td>PO</td><td>west</td><td>2</td><td>모술 3-0 아시가바트</td><td></td><td>모술</td></tr><tr><td>QF</td><td>east</td><td>1</td><td>광저우 8-6 페낭</td><td>페낭 4-3 광저우</td><td>페낭</td></tr><tr><td>QF</td><td>east</td><td>2</td><td>시드니 15-0 하노이</td><td>하노이 4-2 시드니</td><td>하노이</td></tr><tr><td>QF</td><td>west</td><td>1</td><td>이스파한 13-16 뉴델리</td><td>뉴델리 7-2 이스파한</td><td>뉴델리</td></tr><tr><td>QF</td><td>west</td><td>2</td><td>마나마 1-6 움살랄</td><td>움살랄 8-5 마나마</td><td>움살랄</td></tr><tr><td>SF</td><td>east</td><td>1</td><td>광저우 1-1 시드니</td><td>시드니 0-7 광저우</td><td>광저우</td></tr><tr><td>SF</td><td>west</td><td>1</td><td>뉴델리 9-4 움살랄</td><td>움살랄 2-12 뉴델리</td><td>뉴델리</td></tr><tr><td>Final</td><td>final</td><td>1</td><td>뉴델리 4-5 광저우</td><td></td><td>광저우</td></tr></tbody>
+                <tbody><tr><td>PO</td><td>east</td><td>1</td><td>세부 1-0 멜버른</td><td></td><td>세부</td></tr><tr><td>PO</td><td>east</td><td>2</td><td>시엠립 8-6 다낭</td><td></td><td>시엠립</td></tr><tr><td>PO</td><td>west</td><td>1</td><td>무하라크 4-1 뭄바이</td><td></td><td>무하라크</td></tr><tr><td>PO</td><td>west</td><td>2</td><td>모술 3-0 아시가바트</td><td></td><td>모술</td></tr><tr><td>QF</td><td>east</td><td>1</td><td>광저우 8-6 페낭</td><td>페낭 4-3 광저우</td><td>광저우</td></tr><tr><td>QF</td><td>east</td><td>2</td><td>시드니 15-0 하노이</td><td>하노이 4-2 시드니</td><td>시드니</td></tr><tr><td>QF</td><td>west</td><td>1</td><td>이스파한 13-16 뉴델리</td><td>뉴델리 7-2 이스파한</td><td>뉴델리</td></tr><tr><td>QF</td><td>west</td><td>2</td><td>마나마 1-6 움살랄</td><td>움살랄 8-5 마나마</td><td>움살랄</td></tr><tr><td>SF</td><td>east</td><td>1</td><td>광저우 1-1 시드니</td><td>시드니 0-7 광저우</td><td>광저우</td></tr><tr><td>SF</td><td>west</td><td>1</td><td>뉴델리 9-4 움살랄</td><td>움살랄 2-12 뉴델리</td><td>뉴델리</td></tr><tr><td>Final</td><td>final</td><td>1</td><td>뉴델리 4-5 광저우</td><td></td><td>광저우</td></tr></tbody>
               </table>
         
               </div>

@@ -283,6 +283,41 @@ function renderKnockoutScheduleTable(matchGroups, completed, teamNames) {
   `;
 }
 
+function completedReplayMatches(replay, snapshot, predicate) {
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
+  const schedule = Array.isArray(replay?.schedule) ? replay.schedule : [];
+  return schedule.filter((match) => completed.has(String(match.match_id || "")) && (!predicate || predicate(match)));
+}
+
+function matchResultFromReplay(match) {
+  return {
+    competition: String(match.competition || ""),
+    home_team_id: String(match.home_team_id || ""),
+    away_team_id: String(match.away_team_id || ""),
+    home_score: Number(match.home_score || 0),
+    away_score: Number(match.away_score || 0),
+  };
+}
+
+function groupStandingsSections(groups, completed, teamNames, labelPrefix = "") {
+  return Array.from(groups.entries())
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), "ko"))
+    .map(([groupName, matches]) => {
+      const teamIds = Array.from(new Set(matches.flatMap((match) => [
+        String(match.home_team_id || ""),
+        String(match.away_team_id || ""),
+      ]).filter(Boolean)));
+      const rows = calculateStandings(
+        teamIds,
+        matches.filter((match) => completed.has(String(match.match_id || ""))).map(matchResultFromReplay),
+        teamNames,
+      );
+      return `<section class="cup-group"><h3>${labelPrefix}${groupName}</h3>${standingsTable(rows, false)}</section>`;
+    })
+    .join("");
+}
+
 function replaceViewContent(panel, viewId, html) {
   const view = panel.querySelector(`#${viewId}`);
   if (view) {
@@ -522,6 +557,8 @@ function renderAclPanel(panel, league, acl, completed, teamNames) {
 function wireViewToggles() {
   document.querySelectorAll(".view-toggle").forEach((toggle) => {
     toggle.querySelectorAll(".toggle-btn").forEach((button) => {
+      if (button.dataset.viewToggleWired === "1") return;
+      button.dataset.viewToggleWired = "1";
       button.addEventListener("click", () => {
         const panel = button.closest(".panel");
         if (button.disabled || !panel) return;
@@ -785,6 +822,81 @@ function aclKnockoutGroupsFromReplay(league, replay, snapshot) {
   };
 }
 
+function renderSuperCupFromReplay(panel, replay, snapshot, teamNames) {
+  panel.querySelectorAll(".view-toggle, .pending, table").forEach((node) => node.remove());
+  const matches = completedReplayMatches(replay, snapshot, (match) => String(match.competition || "") === "super_cup");
+  const teamIds = Array.from(new Set(
+    (replay?.schedule || [])
+      .filter((match) => String(match.competition || "") === "super_cup")
+      .flatMap((match) => [String(match.home_team_id || ""), String(match.away_team_id || "")])
+      .filter(Boolean)
+  ));
+  const rows = calculateStandings(teamIds, matches.map(matchResultFromReplay), teamNames);
+  panel.insertAdjacentHTML("beforeend", rows.length ? standingsTable(rows, false) : `<p class="pending">아직 슈퍼컵 경기가 없습니다.</p>`);
+}
+
+function renderLocalCupFromReplay(panel, replay, snapshot, teamNames) {
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
+  const schedule = (replay?.schedule || []).filter((match) => String(match.competition || "") === "local_cup");
+  const regionalMatches = schedule.filter((match) => String(match.stage || "") === "regional_qualifier");
+  const groupMatches = schedule.filter((match) => String(match.stage || "") === "group");
+  const knockoutMatches = schedule.filter((match) => !["regional_qualifier", "group"].includes(String(match.stage || "")));
+  const activeTarget = panel.dataset.activeViewTarget || "local_cup-regional";
+  const regionalDone = regionalMatches.length > 0 && regionalMatches.every((match) => completed.has(String(match.match_id || "")));
+  const hasGroups = groupMatches.length > 0;
+  const groupEnabled = hasGroups && regionalDone;
+  const knockoutGroups = knockoutScheduleRows(knockoutMatches.filter((match) => completedCount >= Number(match.reveal_after_count || 0)), completed, [...regionalMatches, ...groupMatches]);
+  const hasKnockout = knockoutGroups.length > 0;
+  const selectedTarget = activeTarget === "local_cup-groups" && groupEnabled
+    ? activeTarget
+    : activeTarget === "local_cup-knockout" && hasKnockout
+      ? activeTarget
+      : "local_cup-regional";
+
+  const regionalGroups = new Map();
+  for (const match of regionalMatches) {
+    const label = [String(match.region || "지역예선"), String(match.group || "")].filter(Boolean).join(" ");
+    if (!regionalGroups.has(label)) regionalGroups.set(label, []);
+    regionalGroups.get(label).push(match);
+  }
+  const cupGroups = new Map();
+  for (const match of groupMatches) {
+    const label = String(match.group || "Group");
+    if (!cupGroups.has(label)) cupGroups.set(label, []);
+    cupGroups.get(label).push(match);
+  }
+
+  panel.innerHTML = `
+    <h2>local_cup</h2>
+    <div class="view-toggle" role="group" aria-label="local_cup 보기">
+      <button class="toggle-btn ${selectedTarget === "local_cup-regional" ? "active" : ""}" type="button" data-target="local_cup-regional">지역예선순위</button>
+      <button class="toggle-btn ${selectedTarget === "local_cup-groups" ? "active" : ""}" type="button" data-target="local_cup-groups" ${groupEnabled ? "" : "disabled"}>조별예선순위</button>
+      <button class="toggle-btn ${selectedTarget === "local_cup-knockout" ? "active" : ""}" type="button" data-target="local_cup-knockout" ${hasKnockout ? "" : "disabled"}>토너먼트</button>
+    </div>
+    <div class="view-panel" id="local_cup-regional" ${selectedTarget === "local_cup-regional" ? "" : "hidden"}>
+      ${regionalGroups.size ? groupStandingsSections(regionalGroups, completed, teamNames) : `<p class="pending">지역예선 경기가 없습니다.</p>`}
+    </div>
+    <div class="view-panel" id="local_cup-groups" ${selectedTarget === "local_cup-groups" ? "" : "hidden"}>
+      ${groupEnabled ? groupStandingsSections(cupGroups, completed, teamNames, "Group ") : `<p class="pending">조별예선은 지역예선 종료 후 표시됩니다.</p>`}
+    </div>
+    <div class="view-panel" id="local_cup-knockout" ${selectedTarget === "local_cup-knockout" ? "" : "hidden"}>
+      ${renderKnockoutScheduleTable(knockoutGroups, completed, teamNames)}
+    </div>
+  `;
+  wireViewToggles();
+}
+
+function renderChampionshipFromReplay(panel, replay, snapshot, teamNames) {
+  panel.querySelectorAll(".view-toggle, .view-panel, .pending, table").forEach((node) => node.remove());
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
+  const matches = (replay?.schedule || []).filter((match) => String(match.competition || "") === "championship");
+  const visible = matches.filter((match) => completedCount >= Number(match.reveal_after_count || 0));
+  const groups = knockoutScheduleRows(visible, completed);
+  panel.insertAdjacentHTML("beforeend", renderKnockoutScheduleTable(groups, completed, teamNames));
+}
+
 function setKnockoutButtonState(panel, target, enabled) {
   const button = panel.querySelector(`.toggle-btn[data-target="${target}"]`);
   if (!button) return;
@@ -805,6 +917,18 @@ function guardStandingsFromReplay(snapshot, teams, replay) {
     panel.querySelectorAll(".cup-tabs, .cup-view, .pending, .cup-group").forEach((node) => node.remove());
     if (competition === "league") {
       replaceViewContent(panel, "league-rank", renderReplayStandingsTable(snapshot?.standings?.league || [], teamNames));
+      return;
+    }
+    if (competition === "super_cup") {
+      renderSuperCupFromReplay(panel, replay, snapshot, teamNames);
+      return;
+    }
+    if (competition === "local_cup") {
+      renderLocalCupFromReplay(panel, replay, snapshot, teamNames);
+      return;
+    }
+    if (competition === "championship") {
+      renderChampionshipFromReplay(panel, replay, snapshot, teamNames);
       return;
     }
     if (competition === "ACL1" || competition === "ACL2" || competition === "ACL3") {
