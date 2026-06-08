@@ -5,33 +5,41 @@
       "team_id": "T02",
       "team_name": "대구",
       "league_rank": 1,
-      "points": 15,
+      "points": 10,
       "super_cup_table_points": 0,
-      "acl_score": 15
+      "acl_score": 10,
+      "league_bonus_points": 10,
+      "cup_bonus_points": 0
     },
     {
       "team_id": "T01",
       "team_name": "서산",
       "league_rank": 2,
-      "points": 8,
+      "points": 5,
       "super_cup_table_points": 0,
-      "acl_score": 8
+      "acl_score": 5,
+      "league_bonus_points": 5,
+      "cup_bonus_points": 0
     },
     {
       "team_id": "T03",
       "team_name": "부산",
       "league_rank": 3,
-      "points": 3,
+      "points": 1,
       "super_cup_table_points": 0,
-      "acl_score": 3
+      "acl_score": 1,
+      "league_bonus_points": 1,
+      "cup_bonus_points": 0
     },
     {
       "team_id": "T14",
       "team_name": "제주",
       "league_rank": 4,
-      "points": 1,
+      "points": 0,
       "super_cup_table_points": 0,
-      "acl_score": 1
+      "acl_score": 0,
+      "league_bonus_points": 0,
+      "cup_bonus_points": 0
     },
     {
       "team_id": "T06",
@@ -39,7 +47,9 @@
       "league_rank": 5,
       "points": 0,
       "super_cup_table_points": 0,
-      "acl_score": 0
+      "acl_score": 0,
+      "league_bonus_points": 0,
+      "cup_bonus_points": 0
     },
     {
       "team_id": "T10",
@@ -47,7 +57,9 @@
       "league_rank": 6,
       "points": 0,
       "super_cup_table_points": 0,
-      "acl_score": 0
+      "acl_score": 0,
+      "league_bonus_points": 0,
+      "cup_bonus_points": 0
     }
   ],
   "matches": [
@@ -339,18 +351,6 @@
   ],
   "standings": [
     {
-      "team_id": "T02",
-      "team_name": "대구",
-      "played": 5,
-      "wins": 2,
-      "draws": 1,
-      "losses": 2,
-      "gf": 24,
-      "ga": 20,
-      "gd": 4,
-      "points": 22
-    },
-    {
       "team_id": "T01",
       "team_name": "서산",
       "played": 5,
@@ -359,8 +359,22 @@
       "losses": 1,
       "gf": 27,
       "ga": 21,
+      "points": 17,
       "gd": 6,
-      "points": 20
+      "rank": 1
+    },
+    {
+      "team_id": "T02",
+      "team_name": "대구",
+      "played": 5,
+      "wins": 2,
+      "draws": 1,
+      "losses": 2,
+      "gf": 24,
+      "ga": 20,
+      "points": 17,
+      "gd": 4,
+      "rank": 2
     },
     {
       "team_id": "T03",
@@ -371,8 +385,9 @@
       "losses": 1,
       "gf": 32,
       "ga": 29,
+      "points": 11,
       "gd": 3,
-      "points": 13
+      "rank": 3
     },
     {
       "team_id": "T06",
@@ -383,20 +398,9 @@
       "losses": 3,
       "gf": 25,
       "ga": 20,
+      "points": 6,
       "gd": 5,
-      "points": 6
-    },
-    {
-      "team_id": "T14",
-      "team_name": "제주",
-      "played": 5,
-      "wins": 1,
-      "draws": 1,
-      "losses": 3,
-      "gf": 24,
-      "ga": 37,
-      "gd": -13,
-      "points": 5
+      "rank": 4
     },
     {
       "team_id": "T10",
@@ -407,11 +411,25 @@
       "losses": 3,
       "gf": 17,
       "ga": 22,
+      "points": 4,
       "gd": -5,
-      "points": 4
+      "rank": 5
+    },
+    {
+      "team_id": "T14",
+      "team_name": "제주",
+      "played": 5,
+      "wins": 1,
+      "draws": 1,
+      "losses": 3,
+      "gf": 24,
+      "ga": 37,
+      "points": 4,
+      "gd": -13,
+      "rank": 6
     }
   ],
   "champions": {
-    "super_cup": "T02"
+    "super_cup": "T01"
   }
 }

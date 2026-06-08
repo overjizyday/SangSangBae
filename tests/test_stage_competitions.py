@@ -72,6 +72,21 @@ class StageCompetitionsTests(unittest.TestCase):
         self.assertEqual(sum(1 for match in cup["matches"] if match.week == 1), 6)
         self.assertEqual(sum(1 for match in cup["matches"] if match.week == 2), 9)
 
+    def test_super_cup_adds_league_and_cup_bonus_points(self):
+        cup = generate_super_cup(
+            make_teams(8),
+            standings(8),
+            {"local_cup": {"winner_id": "T07", "runner_up_id": "T08"}},
+        )
+
+        points_by_team = {row["team_id"]: row["points"] for row in cup["entrants"]}
+        self.assertEqual(points_by_team["T01"], 10)
+        self.assertEqual(points_by_team["T02"], 5)
+        self.assertEqual(points_by_team["T03"], 1)
+        self.assertEqual(points_by_team["T07"], 7)
+        self.assertEqual(points_by_team["T08"], 3)
+        self.assertNotIn("T06", points_by_team)
+
     def test_second_season_writes_new_competition_json_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

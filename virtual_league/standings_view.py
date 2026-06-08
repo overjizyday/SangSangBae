@@ -743,6 +743,6 @@ def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]])
       }});
     }});
   </script>
-  <script src="./spoiler_guard.js?v=sync-clock-11" defer></script>
+  <script src="./spoiler_guard.js?v=cup-views-2" defer></script>
 </body>
 </html>"""

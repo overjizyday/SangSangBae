@@ -154,6 +154,18 @@ function calculateStandings(teamIds, matches, teamNames) {
   return rows;
 }
 
+function rankStandingsRows(rows) {
+  rows.sort((a, b) => (
+    b.points - a.points ||
+    b.gd - a.gd ||
+    b.gf - a.gf ||
+    a.ga - b.ga ||
+    String(a.team_name).localeCompare(String(b.team_name), "ko")
+  ));
+  rows.forEach((row, index) => { row.rank = index + 1; });
+  return rows;
+}
+
 function standingsTable(rows, compact = false) {
   const headers = compact ? ["순위", "팀", "경기"] : ["순위", "팀", "경기", "승", "무", "패", "득점", "실점", "득실", "승점"];
   const cols = compact ? ["rank", "team_name", "played"] : ["rank", "team_name", "played", "wins", "draws", "losses", "gf", "ga", "gd", "points"];
@@ -825,13 +837,21 @@ function aclKnockoutGroupsFromReplay(league, replay, snapshot) {
 function renderSuperCupFromReplay(panel, replay, snapshot, teamNames) {
   panel.querySelectorAll(".view-toggle, .pending, table").forEach((node) => node.remove());
   const matches = completedReplayMatches(replay, snapshot, (match) => String(match.competition || "") === "super_cup");
-  const teamIds = Array.from(new Set(
+  const entrants = Array.isArray(replay?.superCup?.entrants) ? replay.superCup.entrants : [];
+  const basePoints = new Map(entrants.map((row) => [String(row.team_id || ""), Number(row.points || 0)]));
+  const entrantIds = entrants.map((row) => String(row.team_id || "")).filter(Boolean);
+  const scheduleIds = Array.from(new Set(
     (replay?.schedule || [])
       .filter((match) => String(match.competition || "") === "super_cup")
       .flatMap((match) => [String(match.home_team_id || ""), String(match.away_team_id || "")])
       .filter(Boolean)
   ));
+  const teamIds = entrantIds.length ? entrantIds : scheduleIds;
   const rows = calculateStandings(teamIds, matches.map(matchResultFromReplay), teamNames);
+  for (const row of rows) {
+    row.points += basePoints.get(String(row.team_id)) || 0;
+  }
+  rankStandingsRows(rows);
   panel.insertAdjacentHTML("beforeend", rows.length ? standingsTable(rows, false) : `<p class="pending">아직 슈퍼컵 경기가 없습니다.</p>`);
 }
 
@@ -943,16 +963,17 @@ function guardStandingsFromReplay(snapshot, teams, replay) {
 }
 
 async function main() {
-  const [manifest, teams, acl] = await Promise.all([
+  const [manifest, teams, acl, superCup] = await Promise.all([
     fetch("./replay_manifest.json", { cache: "no-store" }).then((r) => r.json()),
     fetch("./teams.json", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
     fetch("./acl.json", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
+    fetch("./super_cup.json", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
   ]);
   const [schedule, completionOrder] = await Promise.all([
     fetch(`./${manifest.schedule_path || "replay_schedule.json"}`, { cache: "no-store" }).then((r) => r.json()),
     fetch(`./${manifest.completion_order_path || "replay_completion_order.json"}`, { cache: "no-store" }).then((r) => r.json()),
   ]);
-  const replay = { ...manifest, schedule, completion_order: completionOrder, acl };
+  const replay = { ...manifest, schedule, completion_order: completionOrder, acl, superCup };
   const chunkCache = new Map();
   async function loadSnapshot() {
     const chunkInfo = selectChunkInfo(manifest);
