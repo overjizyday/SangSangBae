@@ -5,15 +5,15 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 
 from .models import Match
-from .simulation import simulate_baseball_game
+from .simulation import simulate_baseball_game, simulate_baseball_game_with_aggregate
 
 WEST_GROUPS = ["A", "B", "C", "D"]
 EAST_GROUPS = ["E", "F", "G", "H"]
 
 
-def simulate_match(match: Match, rng: random.Random, decisive: bool = False) -> None:
+def simulate_match(match: Match, rng: random.Random, decisive: bool = False, walkoff: bool = True) -> None:
     if match.home_score is None or match.away_score is None:
-        generated_home, generated_away = simulate_baseball_game(rng, decisive=decisive)
+        generated_home, generated_away = simulate_baseball_game(rng, decisive=decisive, walkoff=walkoff)
         if match.home_score is None:
             match.home_score = generated_home
         if match.away_score is None:
@@ -30,24 +30,12 @@ def simulate_match(match: Match, rng: random.Random, decisive: bool = False) -> 
 
     advantage = match.advantage_team_id
     if advantage == match.home_team_id:
-        match.home_score += 1
         match.winner_team_id = match.home_team_id
         match.loser_team_id = match.away_team_id
         return
     if advantage == match.away_team_id:
-        match.away_score += 1
         match.winner_team_id = match.away_team_id
         match.loser_team_id = match.home_team_id
-        return
-    if decisive:
-        if rng.random() < 0.5:
-            match.home_score += 1
-            match.winner_team_id = match.home_team_id
-            match.loser_team_id = match.away_team_id
-        else:
-            match.away_score += 1
-            match.winner_team_id = match.away_team_id
-            match.loser_team_id = match.home_team_id
         return
 
     match.winner_team_id = None
@@ -508,7 +496,7 @@ def resolve_local_cup(payload: dict[str, object], seed: int = 7) -> None:
         group_size = 4 if len(group_names) >= 4 else 3
         slots_per_group = 4 if group_size == 4 else 3
         cursor = 0
-        advancing_slots: list[str] = []
+        group_advancers: list[list[str]] = []
 
         for group_name in group_names:
             members = main_teams[cursor : cursor + slots_per_group]
@@ -529,11 +517,11 @@ def resolve_local_cup(payload: dict[str, object], seed: int = 7) -> None:
                 [{"team_id": team_id, **values} for team_id, values in stats.items()]
             )
             direct_slots = len(members) // 2
-            advancing_slots.extend(row["team_id"] for row in ranked[:direct_slots])
+            group_advancers.append([str(row["team_id"]) for row in ranked[:direct_slots]])
 
         if main_total == 16 and qf_matches:
-            advancing_slots = _fill_slots(advancing_slots, 8)
-            _resolve_single_leg_round(qf_matches, advancing_slots[:8], rng)
+            advancing_slots = _fill_slots(_local_post_group_first_round_slots(group_advancers), 8)
+            _resolve_advantage_single_leg_round(qf_matches, advancing_slots[:8], rng)
             winners = _collect_winners(qf_matches)
             _resolve_single_leg_round(sf_matches, _bracket_order(winners), rng)
             final_teams = _collect_winners(sf_matches)
@@ -545,8 +533,8 @@ def resolve_local_cup(payload: dict[str, object], seed: int = 7) -> None:
             return
 
         if main_total == 32 and r16_matches:
-            advancing_slots = _fill_slots(advancing_slots, 16)
-            _resolve_single_leg_round(r16_matches, advancing_slots[:16], rng)
+            advancing_slots = _fill_slots(_local_post_group_first_round_slots(group_advancers), 16)
+            _resolve_advantage_single_leg_round(r16_matches, advancing_slots[:16], rng)
             winners = _collect_winners(r16_matches)
             _resolve_single_leg_round(qf_matches, _bracket_order(winners), rng)
             winners = _collect_winners(qf_matches)
@@ -774,6 +762,39 @@ def _resolve_single_leg_round(matches: list[Match], teams: Sequence[str], rng: r
     _assign_single_leg_round(ordered_matches, teams, rng)
 
 
+def _resolve_advantage_single_leg_round(matches: list[Match], teams: Sequence[str], rng: random.Random) -> None:
+    ordered_matches = sorted(matches, key=lambda m: (m.match_no or 0, m.id))
+    for idx, match in enumerate(ordered_matches):
+        home_idx = idx * 2
+        away_idx = home_idx + 1
+        if away_idx >= len(teams):
+            break
+        match.home_team_id = teams[home_idx]
+        match.away_team_id = teams[away_idx]
+        match.advantage_team_id = match.home_team_id
+        simulate_match(match, rng, decisive=False, walkoff=True)
+
+
+def _local_post_group_first_round_slots(group_advancers: Sequence[Sequence[str]]) -> list[str]:
+    slots: list[str] = []
+    for idx in range(0, len(group_advancers) - 1, 2):
+        first_group = list(group_advancers[idx])
+        second_group = list(group_advancers[idx + 1])
+        if len(first_group) < 2 or len(second_group) < 2:
+            continue
+        first_winner, first_runner_up = first_group[0], first_group[1]
+        second_winner, second_runner_up = second_group[0], second_group[1]
+        slots.extend(
+            [
+                second_winner,
+                first_runner_up,
+                first_winner,
+                second_runner_up,
+            ]
+        )
+    return slots
+
+
 def _resolve_two_leg_pairs(matches: list[Match], pairs: list[tuple[str, str]], rng: random.Random) -> list[str]:
     ordered = sorted(matches, key=lambda m: (m.match_no or 0, m.leg or 0, m.id))
     winners: list[str] = []
@@ -784,18 +805,25 @@ def _resolve_two_leg_pairs(matches: list[Match], pairs: list[tuple[str, str]], r
         leg2 = ordered[idx * 2 + 1]
         leg1.home_team_id = home
         leg1.away_team_id = away
-        simulate_match(leg1, rng, decisive=False)
+        simulate_match(leg1, rng, decisive=False, walkoff=False)
         leg2.home_team_id = away
         leg2.away_team_id = home
-        simulate_match(leg2, rng, decisive=True)
+        if leg2.home_score is None or leg2.away_score is None:
+            leg2.home_score, leg2.away_score = simulate_baseball_game_with_aggregate(
+                rng,
+                prior_away_total=int(leg1.home_score or 0),
+                prior_home_total=int(leg1.away_score or 0),
+            )
         home_agg = (leg1.home_score or 0) + (leg2.away_score or 0)
         away_agg = (leg1.away_score or 0) + (leg2.home_score or 0)
         if home_agg > away_agg:
+            leg2.winner_team_id = home
+            leg2.loser_team_id = away
             winners.append(home)
-        elif away_agg > home_agg:
-            winners.append(away)
         else:
-            winners.append(leg2.winner_team_id or leg2.home_team_id)
+            leg2.winner_team_id = away
+            leg2.loser_team_id = home
+            winners.append(away)
     return winners
 
 

@@ -64,6 +64,36 @@
       font-size: 16px;
       text-transform: none;
     }
+    .view-toggle {
+      display: inline-flex;
+      gap: 4px;
+      margin: 0 0 12px;
+      padding: 3px;
+      background: #eef3f9;
+      border: 1px solid #d8dee8;
+      border-radius: 7px;
+    }
+    .toggle-btn {
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 10px;
+      background: transparent;
+      color: #344054;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .toggle-btn.active {
+      background: #172033;
+      color: #fff;
+    }
+    .toggle-btn:disabled {
+      color: #98a2b3;
+      cursor: not-allowed;
+    }
+    .view-panel {
+      overflow-x: auto;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -90,45 +120,134 @@
     <section class="row top">
             <section class="panel wide">
               <h2>league</h2>
+              
+              <div class="view-panel" id="league-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
                 </thead>
                 <tbody><tr><td>1</td><td>대구</td><td>42</td><td>25</td><td>0</td><td>17</td><td>217</td><td>177</td><td>40</td><td>75</td></tr><tr><td>2</td><td>서산</td><td>42</td><td>25</td><td>0</td><td>17</td><td>195</td><td>184</td><td>11</td><td>75</td></tr><tr><td>3</td><td>부산</td><td>42</td><td>24</td><td>0</td><td>18</td><td>207</td><td>198</td><td>9</td><td>72</td></tr><tr><td>4</td><td>제주</td><td>42</td><td>23</td><td>0</td><td>19</td><td>210</td><td>169</td><td>41</td><td>69</td></tr><tr><td>5</td><td>동대문</td><td>39</td><td>21</td><td>0</td><td>18</td><td>185</td><td>153</td><td>32</td><td>63</td></tr><tr><td>6</td><td>춘천</td><td>39</td><td>21</td><td>0</td><td>18</td><td>163</td><td>172</td><td>-9</td><td>63</td></tr><tr><td>7</td><td>울산</td><td>39</td><td>20</td><td>0</td><td>19</td><td>157</td><td>153</td><td>4</td><td>60</td></tr><tr><td>8</td><td>창원</td><td>39</td><td>20</td><td>0</td><td>19</td><td>163</td><td>164</td><td>-1</td><td>60</td></tr><tr><td>9</td><td>부천</td><td>39</td><td>20</td><td>0</td><td>19</td><td>165</td><td>167</td><td>-2</td><td>60</td></tr><tr><td>10</td><td>광주</td><td>39</td><td>18</td><td>0</td><td>21</td><td>174</td><td>200</td><td>-26</td><td>54</td></tr><tr><td>11</td><td>수원</td><td>39</td><td>17</td><td>0</td><td>22</td><td>171</td><td>194</td><td>-23</td><td>51</td></tr><tr><td>12</td><td>경산</td><td>39</td><td>16</td><td>0</td><td>23</td><td>177</td><td>172</td><td>5</td><td>48</td></tr><tr><td>13</td><td>세종</td><td>39</td><td>16</td><td>0</td><td>23</td><td>148</td><td>171</td><td>-23</td><td>48</td></tr><tr><td>14</td><td>원주</td><td>39</td><td>13</td><td>0</td><td>26</td><td>172</td><td>230</td><td>-58</td><td>39</td></tr></tbody>
               </table>
+        
+              </div>
+              
             </section>
             </section><section class="row bottom">
             <section class="panel">
               <h2>ACL1</h2>
+              
+              <div class="view-toggle" role="group" aria-label="ACL1 보기">
+                <button class="toggle-btn active" type="button" data-target="ACL1-rank">조별리그 순위</button>
+                <button class="toggle-btn" type="button" data-target="ACL1-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="ACL1-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
                 <tbody><tr><td>1</td><td>타슈켄트</td></tr><tr><td>2</td><td>쿠알라룸푸르</td></tr><tr><td>3</td><td>마슈하드</td></tr><tr><td>4</td><td>도쿄</td></tr><tr><td>5</td><td>암만</td></tr><tr><td>6</td><td>나콘랏차시마</td></tr><tr><td>7</td><td>요코하마</td></tr><tr><td>8</td><td>알라이얀</td></tr><tr><td>9</td><td>사마르칸트</td></tr><tr><td>10</td><td>베이징</td></tr><tr><td>11</td><td>방콕</td></tr><tr><td>12</td><td>알코르</td></tr><tr><td>13</td><td>콘깬</td></tr><tr><td>14</td><td>고베</td></tr><tr><td>15</td><td>샤르자</td></tr><tr><td>16</td><td>시드니</td></tr><tr><td>17</td><td>제다</td></tr><tr><td>18</td><td>푸껫</td></tr><tr><td>19</td><td>테헤란</td></tr><tr><td>20</td><td>상하이</td></tr><tr><td>21</td><td>알아인</td></tr><tr><td>22</td><td>아지만</td></tr><tr><td>23</td><td>오사카</td></tr><tr><td>24</td><td>리야드</td></tr><tr><td>25</td><td>메디나</td></tr><tr><td>26</td><td>알와크라</td></tr><tr><td>27</td><td>메카</td></tr><tr><td>28</td><td>두바이</td></tr><tr><td>29</td><td>파타야</td></tr><tr><td>30</td><td>멜버른</td></tr><tr><td>31</td><td>싱가포르</td></tr><tr><td>32</td><td>하노이</td></tr></tbody>
               </table>
+        
+              </div>
+              
+              <div class="view-panel" id="ACL1-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td>PO</td><td>east</td><td>1</td><td>나콘랏차시마 14-2 광저우</td><td></td><td>나콘랏차시마</td></tr><tr><td>PO</td><td>east</td><td>2</td><td>우드랜즈 2-7 방콕</td><td></td><td>방콕</td></tr><tr><td>PO</td><td>west</td><td>1</td><td>푸자이라 2-3 알코르</td><td></td><td>알코르</td></tr><tr><td>PO</td><td>west</td><td>2</td><td>도하 4-5 사마르칸트</td><td></td><td>사마르칸트</td></tr><tr><td>QF</td><td>east</td><td>1</td><td>요코하마 3-8 도쿄</td><td>도쿄 4-3 요코하마</td><td>도쿄</td></tr><tr><td>QF</td><td>east</td><td>2</td><td>쿠알라룸푸르 5-5 베이징</td><td>베이징 9-11 쿠알라룸푸르</td><td>쿠알라룸푸르</td></tr><tr><td>QF</td><td>west</td><td>1</td><td>알라이얀 3-12 타슈켄트</td><td>타슈켄트 8-3 알라이얀</td><td>타슈켄트</td></tr><tr><td>QF</td><td>west</td><td>2</td><td>마슈하드 2-6 암만</td><td>암만 3-4 마슈하드</td><td>마슈하드</td></tr><tr><td>SF</td><td>east</td><td>1</td><td>도쿄 0-1 쿠알라룸푸르</td><td>쿠알라룸푸르 8-2 도쿄</td><td>쿠알라룸푸르</td></tr><tr><td>SF</td><td>west</td><td>1</td><td>타슈켄트 6-3 암만</td><td>암만 2-7 타슈켄트</td><td>타슈켄트</td></tr><tr><td>Final</td><td>final</td><td>1</td><td>쿠알라룸푸르 3-5 타슈켄트</td><td></td><td>타슈켄트</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             
             <section class="panel">
               <h2>ACL2</h2>
+              
+              <div class="view-toggle" role="group" aria-label="ACL2 보기">
+                <button class="toggle-btn active" type="button" data-target="ACL2-rank">조별리그 순위</button>
+                <button class="toggle-btn" type="button" data-target="ACL2-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="ACL2-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
                 <tbody><tr><td>1</td><td>도하</td></tr><tr><td>2</td><td>푸자이라</td></tr><tr><td>3</td><td>마닐라</td></tr><tr><td>4</td><td>핫야이</td></tr><tr><td>5</td><td>바스라</td></tr><tr><td>6</td><td>부하라</td></tr><tr><td>7</td><td>살랄라</td></tr><tr><td>8</td><td>자카르타</td></tr><tr><td>9</td><td>브리즈번</td></tr><tr><td>10</td><td>조호르바루</td></tr><tr><td>11</td><td>무하라크</td></tr><tr><td>12</td><td>구룡</td></tr><tr><td>13</td><td>움살랄</td></tr><tr><td>14</td><td>담맘</td></tr><tr><td>15</td><td>우드랜즈</td></tr><tr><td>16</td><td>마나마</td></tr><tr><td>17</td><td>광저우</td></tr><tr><td>18</td><td>이스파한</td></tr><tr><td>19</td><td>뉴델리</td></tr><tr><td>20</td><td>탐피니스</td></tr><tr><td>21</td><td>치앙마이</td></tr><tr><td>22</td><td>다낭</td></tr><tr><td>23</td><td>호찌민</td></tr><tr><td>24</td><td>프놈펜</td></tr><tr><td>25</td><td>홍콩</td></tr><tr><td>26</td><td>라스알카이마</td></tr><tr><td>27</td><td>무스카트</td></tr><tr><td>28</td><td>나고야</td></tr><tr><td>29</td><td>선전</td></tr><tr><td>30</td><td>자르카</td></tr><tr><td>31</td><td>아부다비</td></tr><tr><td>32</td><td>바그다드</td></tr></tbody>
               </table>
+        
+              </div>
+              
+              <div class="view-panel" id="ACL2-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td>PO</td><td>east</td><td>1</td><td>하이퐁 8-10 구룡</td><td></td><td>구룡</td></tr><tr><td>PO</td><td>east</td><td>2</td><td>세부 5-7 자카르타</td><td></td><td>자카르타</td></tr><tr><td>PO</td><td>west</td><td>1</td><td>무하라크 5-1 모술</td><td></td><td>무하라크</td></tr><tr><td>PO</td><td>west</td><td>2</td><td>아시가바트 1-7 살랄라</td><td></td><td>살랄라</td></tr><tr><td>QF</td><td>east</td><td>1</td><td>마닐라 4-3 브리즈번</td><td>브리즈번 4-6 마닐라</td><td>마닐라</td></tr><tr><td>QF</td><td>east</td><td>2</td><td>조호르바루 1-4 핫야이</td><td>핫야이 6-4 조호르바루</td><td>핫야이</td></tr><tr><td>QF</td><td>west</td><td>1</td><td>푸자이라 9-2 부하라</td><td>부하라 6-4 푸자이라</td><td>부하라</td></tr><tr><td>QF</td><td>west</td><td>2</td><td>바스라 3-9 도하</td><td>도하 6-11 바스라</td><td>바스라</td></tr><tr><td>SF</td><td>east</td><td>1</td><td>마닐라 2-2 핫야이</td><td>핫야이 1-5 마닐라</td><td>마닐라</td></tr><tr><td>SF</td><td>west</td><td>1</td><td>푸자이라 3-9 도하</td><td>도하 6-11 푸자이라</td><td>푸자이라</td></tr><tr><td>Final</td><td>final</td><td>1</td><td>마닐라 7-9 도하</td><td></td><td>도하</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             
             <section class="panel">
               <h2>ACL3</h2>
+              
+              <div class="view-toggle" role="group" aria-label="ACL3 보기">
+                <button class="toggle-btn active" type="button" data-target="ACL3-rank">조별리그 순위</button>
+                <button class="toggle-btn" type="button" data-target="ACL3-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="ACL3-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
                 <tbody><tr><td>1</td><td>투르크메나바트</td></tr><tr><td>2</td><td>딜리</td></tr><tr><td>3</td><td>하이퐁</td></tr><tr><td>4</td><td>평양</td></tr><tr><td>5</td><td>팀푸</td></tr><tr><td>6</td><td>베이루트</td></tr><tr><td>7</td><td>비슈케크</td></tr><tr><td>8</td><td>타이베이</td></tr><tr><td>9</td><td>양곤</td></tr><tr><td>10</td><td>마카오</td></tr><tr><td>11</td><td>뭄바이</td></tr><tr><td>12</td><td>센트럴</td></tr><tr><td>13</td><td>카불</td></tr><tr><td>14</td><td>리파</td></tr><tr><td>15</td><td>세부</td></tr><tr><td>16</td><td>비엔티안</td></tr><tr><td>17</td><td>아시가바트</td></tr><tr><td>18</td><td>두샨베</td></tr><tr><td>19</td><td>코로르</td></tr><tr><td>20</td><td>다마스쿠스</td></tr><tr><td>21</td><td>하갓냐</td></tr><tr><td>22</td><td>가자</td></tr><tr><td>23</td><td>시엠립</td></tr><tr><td>24</td><td>모술</td></tr><tr><td>25</td><td>콜롬보</td></tr><tr><td>26</td><td>가라판</td></tr><tr><td>27</td><td>다카</td></tr><tr><td>28</td><td>카트만두</td></tr><tr><td>29</td><td>쿠웨이트시티</td></tr><tr><td>30</td><td>반다르스리브가완</td></tr><tr><td>31</td><td>울란바토르</td></tr><tr><td>32</td><td>수라바야</td></tr></tbody>
               </table>
+        
+              </div>
+              
+              <div class="view-panel" id="ACL3-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td>QF</td><td>east</td><td>1</td><td>하이퐁 5-2 타이베이</td><td>타이베이 4-6 하이퐁</td><td>하이퐁</td></tr><tr><td>QF</td><td>east</td><td>2</td><td>딜리 9-1 평양</td><td>평양 4-1 딜리</td><td>평양</td></tr><tr><td>QF</td><td>west</td><td>1</td><td>비슈케크 0-3 팀푸</td><td>팀푸 6-2 비슈케크</td><td>팀푸</td></tr><tr><td>QF</td><td>west</td><td>2</td><td>투르크메나바트 11-2 베이루트</td><td>베이루트 5-4 투르크메나바트</td><td>베이루트</td></tr><tr><td>SF</td><td>east</td><td>1</td><td>하이퐁 1-3 딜리</td><td>딜리 6-3 하이퐁</td><td>딜리</td></tr><tr><td>SF</td><td>west</td><td>1</td><td>팀푸 3-9 투르크메나바트</td><td>투르크메나바트 9-5 팀푸</td><td>투르크메나바트</td></tr><tr><td>Final</td><td>final</td><td>1</td><td>딜리 3-4 투르크메나바트</td><td></td><td>투르크메나바트</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             </section>
   </main>
+  <script>
+    document.querySelectorAll(".view-toggle").forEach((toggle) => {
+      const panel = toggle.closest(".panel");
+      toggle.querySelectorAll(".toggle-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (button.disabled || !panel) {
+            return;
+          }
+          toggle.querySelectorAll(".toggle-btn").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          panel.querySelectorAll(".view-panel").forEach((view) => {
+            view.hidden = view.id !== button.dataset.target;
+          });
+        });
+      });
+    });
+  </script>
   <script src="./spoiler_guard.js?v=sync-clock-11" defer></script>
 </body>
 </html>

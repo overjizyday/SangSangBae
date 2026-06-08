@@ -13,6 +13,13 @@ EVENT_CODE_CHOICES: dict[str, tuple[int, ...]] = {
 }
 
 
+def _requires_decision(match: Match) -> bool:
+    stage = str(match.stage).lower()
+    if match.competition == "league" or stage == "regular" or stage.endswith("_group") or stage == "group":
+        return False
+    return True
+
+
 def _finalize_match_result(match: Match) -> None:
     if match.home_score is None or match.away_score is None:
         return
@@ -34,7 +41,9 @@ def simulate_match_outcomes(matches: Iterable[Match], seed: int = 7) -> list[dic
     rows = []
     for match in matches:
         if match.home_score is None or match.away_score is None:
-            match.home_score, match.away_score = simulate_baseball_game(rng, decisive=True)
+            match.home_score, match.away_score = simulate_baseball_game(
+                rng, decisive=_requires_decision(match), walkoff=True
+            )
         _finalize_match_result(match)
         rows.append(
             {
@@ -65,7 +74,9 @@ def simulate_match_outcomes_with_traces(
     traces = []
     for match in matches:
         if match.home_score is None or match.away_score is None:
-            match.home_score, match.away_score = simulate_baseball_game(rng, decisive=True)
+            match.home_score, match.away_score = simulate_baseball_game(
+                rng, decisive=_requires_decision(match), walkoff=True
+            )
         events = _build_pseudo_trace(
             rng,
             home_score=int(match.home_score or 0),

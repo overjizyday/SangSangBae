@@ -94,6 +94,42 @@ def _simulate_half_inning(rng: random.Random) -> int:
     return runs
 
 
+def _simulate_half_inning_controlled(
+    rng: random.Random,
+    add_runs,
+    should_stop,
+) -> int:
+    bases = [False, False, False]
+    outs = 0
+    runs = 0
+
+    while outs < 3:
+        event = _pick_baseball_event(rng)
+
+        if event == "out":
+            outs += 1
+            continue
+
+        if event == "walk":
+            bases, scored = _advance_for_walk(bases)
+        elif event == "single":
+            bases, scored = _advance_for_single(bases)
+        elif event == "double":
+            bases, scored = _advance_for_double(bases)
+        elif event == "triple":
+            bases, scored = _advance_for_triple(bases)
+        else:
+            bases, scored = _advance_for_home_run(bases)
+
+        runs += scored
+        if scored:
+            add_runs(scored)
+        if should_stop():
+            return runs
+
+    return runs
+
+
 def _format_bases(bases: list[bool]) -> str:
     occupied = []
     if bases[0]:
@@ -167,26 +203,101 @@ def _simulate_half_inning_trace(
     return events, score_away, score_home, plate_no
 
 
-def simulate_baseball_game(rng: random.Random, decisive: bool = False) -> tuple[int, int]:
+def simulate_baseball_game(
+    rng: random.Random,
+    decisive: bool = False,
+    walkoff: bool = True,
+) -> tuple[int, int]:
     away_score = 0
     home_score = 0
 
-    for _ in range(9):
+    for inning in range(1, 10):
         away_score += _simulate_half_inning(rng)
-        home_score += _simulate_half_inning(rng)
+        if inning == 9 and walkoff and home_score > away_score:
+            return home_score, away_score
+
+        if inning == 9 and walkoff:
+            def add_home(runs: int) -> None:
+                nonlocal home_score
+                home_score += runs
+
+            _simulate_half_inning_controlled(
+                rng,
+                add_home,
+                lambda: home_score > away_score,
+            )
+        else:
+            home_score += _simulate_half_inning(rng)
 
     if decisive:
-        extra_innings = 0
-        while away_score == home_score and extra_innings < 18:
+        while away_score == home_score:
             away_score += _simulate_half_inning(rng)
-            home_score += _simulate_half_inning(rng)
-            extra_innings += 1
 
-        if away_score == home_score:
-            if rng.random() < 0.5:
-                home_score += 1
+            if walkoff:
+                def add_extra_home(runs: int) -> None:
+                    nonlocal home_score
+                    home_score += runs
+
+                _simulate_half_inning_controlled(
+                    rng,
+                    add_extra_home,
+                    lambda: home_score > away_score,
+                )
             else:
-                away_score += 1
+                home_score += _simulate_half_inning(rng)
+
+    return home_score, away_score
+
+
+def simulate_baseball_game_with_aggregate(
+    rng: random.Random,
+    prior_away_total: int,
+    prior_home_total: int,
+) -> tuple[int, int]:
+    """Simulate a second leg with LE rules against the two-leg aggregate.
+
+    The returned scores are for the current game. prior_* totals are the
+    aggregate runs already owned by the current away/home teams.
+    """
+    away_score = 0
+    home_score = 0
+
+    def away_total() -> int:
+        return prior_away_total + away_score
+
+    def home_total() -> int:
+        return prior_home_total + home_score
+
+    for inning in range(1, 10):
+        away_score += _simulate_half_inning(rng)
+        if inning == 9 and home_total() > away_total():
+            return home_score, away_score
+
+        if inning == 9:
+            def add_home(runs: int) -> None:
+                nonlocal home_score
+                home_score += runs
+
+            _simulate_half_inning_controlled(
+                rng,
+                add_home,
+                lambda: home_total() > away_total(),
+            )
+        else:
+            home_score += _simulate_half_inning(rng)
+
+    while home_total() == away_total():
+        away_score += _simulate_half_inning(rng)
+
+        def add_extra_home(runs: int) -> None:
+            nonlocal home_score
+            home_score += runs
+
+        _simulate_half_inning_controlled(
+            rng,
+            add_extra_home,
+            lambda: home_total() > away_total(),
+        )
 
     return home_score, away_score
 
@@ -212,7 +323,7 @@ def simulate_baseball_game_trace(
         inning += 1
 
     extra_innings = 0
-    while decisive and away_score == home_score and extra_innings < 18:
+    while decisive and away_score == home_score:
         inning = 10 + extra_innings
         half_events, away_score, home_score, plate_no = _simulate_half_inning_trace(
             rng, inning, "top", away_score, home_score, plate_no
@@ -224,33 +335,6 @@ def simulate_baseball_game_trace(
         events.extend(half_events)
         extra_innings += 1
 
-    if decisive and away_score == home_score:
-        if rng.random() < 0.5:
-            home_score += 1
-            winning_team = "home"
-        else:
-            away_score += 1
-            winning_team = "away"
-        events.append(
-            {
-                "plate_appearance": plate_no,
-                "event_code": 99,
-                "inning": 10 + extra_innings,
-                "half": "bottom",
-                "event": "coinflip_run",
-                "outs_before": 0,
-                "outs_after": 0,
-                "bases_before": "-",
-                "bases_after": "-",
-                "score_away_before": away_score - (1 if winning_team == "away" else 0),
-                "score_home_before": home_score - (1 if winning_team == "home" else 0),
-                "score_away_after": away_score,
-                "score_home_after": home_score,
-                "runs_scored": 1,
-                "half_over": True,
-            }
-        )
-
     return home_score, away_score, events
 
 
@@ -258,6 +342,6 @@ def simulate_results(matches: Iterable[Match], seed: int = 7) -> list[Match]:
     rng = random.Random(seed)
     simulated = []
     for match in matches:
-        match.home_score, match.away_score = simulate_baseball_game(rng, decisive=True)
+        match.home_score, match.away_score = simulate_baseball_game(rng, decisive=False, walkoff=True)
         simulated.append(match)
     return simulated

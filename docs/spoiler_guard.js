@@ -230,6 +230,68 @@ function teamLabel(teamId, teamNames) {
   return teamNames.get(String(teamId || "")) || String(teamId || "");
 }
 
+function knockoutScheduleRows(matches, completed, prerequisiteMatches = []) {
+  const stageOrder = {
+    preliminary: 0, regional_po: 1, r16: 2, qf: 3, sf: 4, final: 5,
+    ACL1_po: 0, ACL1_qf: 1, ACL1_sf: 2, ACL1_final: 3,
+    ACL2_po: 0, ACL2_qf: 1, ACL2_sf: 2, ACL2_final: 3,
+    ACL3_po: 0, ACL3_qf: 1, ACL3_sf: 2, ACL3_final: 3,
+  };
+  return groupBracketMatches(visibleBracketMatches(matches, completed, stageOrder, prerequisiteMatches));
+}
+
+function legText(match, completed, teamNames) {
+  if (!match) return "";
+  const home = teamLabel(match.home_team_id, teamNames);
+  const away = teamLabel(match.away_team_id, teamNames);
+  if (!matchCompleted(match, completed)) {
+    return `${home} vs ${away}`;
+  }
+  return `${home} ${Number(match.home_score || 0)}-${Number(match.away_score || 0)} ${away}`;
+}
+
+function winnerText(matchGroup, completed, teamNames) {
+  const winner = aggregateWinnerId(matchGroup, completed);
+  return winner ? teamLabel(winner, teamNames) : "";
+}
+
+function renderKnockoutScheduleTable(matchGroups, completed, teamNames) {
+  if (!matchGroups.length) {
+    return `<p class="pending">확정된 토너먼트 일정이 없습니다.</p>`;
+  }
+  const rows = matchGroups.map((matchGroup) => {
+    const first = matchGroup[0];
+    const byLeg = new Map(matchGroup.map((match) => [Number(match.leg || 1), match]));
+    const leg1 = byLeg.get(1) || first;
+    const leg2 = byLeg.get(2);
+    return `
+      <tr>
+        <td>${String(first.round || "")}</td>
+        <td>${String(first.region || "")}</td>
+        <td>${Number(first.match_no || 0)}</td>
+        <td>${legText(leg1, completed, teamNames)}</td>
+        <td>${legText(leg2, completed, teamNames)}</td>
+        <td>${winnerText(matchGroup, completed, teamNames)}</td>
+      </tr>
+    `;
+  }).join("");
+  return `
+    <table>
+      <thead><tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function replaceViewContent(panel, viewId, html) {
+  const view = panel.querySelector(`#${viewId}`);
+  if (view) {
+    view.innerHTML = html;
+    return;
+  }
+  panel.insertAdjacentHTML("beforeend", html);
+}
+
 function renderBracket(matches, completed, teamNames, prerequisiteMatches = []) {
   const stageOrder = {
     preliminary: 0, regional_po: 1, qf: 2, sf: 3, final: 4,
@@ -354,10 +416,14 @@ function renderLegBox(match, completed, teamNames, aggregateWinner) {
 }
 
 function renderLocalCupPanel(panel, localCup, completed, teamNames) {
-  const activeTarget = panel.dataset.activeCupTarget || "local-groups";
+  const activeTarget = panel.dataset.activeViewTarget || "local_cup-rank";
   const matches = Array.isArray(localCup?.matches) ? localCup.matches : [];
   const groupMatches = matches.filter((match) => String(match.stage || "") === "regional_qualifier");
   const knockoutMatches = matches.filter((match) => String(match.stage || "") !== "regional_qualifier");
+  const knockoutGroups = knockoutScheduleRows(knockoutMatches, completed, groupMatches);
+  const hasKnockout = knockoutGroups.length > 0;
+  const rankHidden = activeTarget === "local_cup-knockout" && hasKnockout ? "hidden" : "";
+  const knockoutHidden = rankHidden ? "" : "hidden";
   const regions = Array.from(new Set(groupMatches.map((match) => String(match.region || "지역 예선"))));
   const groupsHtml = regions.map((region) => {
     const regionMatches = groupMatches.filter((match) => String(match.region || "지역 예선") === region);
@@ -369,21 +435,36 @@ function renderLocalCupPanel(panel, localCup, completed, teamNames) {
 
   panel.innerHTML = `
     <h2>local_cup</h2>
-    <div class="cup-tabs">
-      <button class="cup-tab ${activeTarget === "local-groups" ? "active" : ""}" data-cup-target="local-groups">조별 순위</button>
-      <button class="cup-tab ${activeTarget === "local-bracket" ? "active" : ""}" data-cup-target="local-bracket">토너먼트</button>
+    <div class="view-toggle" role="group" aria-label="local_cup 보기">
+      <button class="toggle-btn ${rankHidden ? "" : "active"}" type="button" data-target="local_cup-rank">순위</button>
+      <button class="toggle-btn ${rankHidden ? "active" : ""}" type="button" data-target="local_cup-knockout" ${hasKnockout ? "" : "disabled"}>토너먼트</button>
     </div>
-    <div class="cup-view" data-cup-view="local-groups" ${activeTarget === "local-groups" ? "" : "hidden"}>${groupsHtml || `<p class="pending">조별 경기가 없습니다.</p>`}</div>
-    <div class="cup-view" data-cup-view="local-bracket" ${activeTarget === "local-bracket" ? "" : "hidden"}>${renderBracket(knockoutMatches, completed, teamNames, groupMatches)}</div>
+    <div class="view-panel" id="local_cup-rank" ${rankHidden}>${groupsHtml || `<p class="pending">조별 경기가 없습니다.</p>`}</div>
+    <div class="view-panel" id="local_cup-knockout" ${knockoutHidden}>${renderKnockoutScheduleTable(knockoutGroups, completed, teamNames)}</div>
   `;
 }
 
 function renderTournamentPanel(panel, title, payload, completed, teamNames) {
   const matches = Array.isArray(payload?.matches) ? payload.matches : [];
   const held = payload?.held !== false;
+  const knockoutGroups = held ? knockoutScheduleRows(matches, completed) : [];
+  const hasKnockout = knockoutGroups.length > 0;
+  const standingsRows = Array.isArray(payload?.standings)
+    ? payload.standings.map((row, index) => ({
+        rank: row.rank ?? index + 1,
+        team_name: teamNames.get(String(row.team_id || "")) || row.team_name || row.team_id,
+      }))
+    : [];
   panel.innerHTML = `
     <h2>${title}</h2>
-    ${held ? renderBracket(matches, completed, teamNames) : `<p class="pending">이번 시즌에는 진행되지 않습니다.</p>`}
+    <div class="view-toggle" role="group" aria-label="${title} 보기">
+      <button class="toggle-btn active" type="button" data-target="${title}-rank">순위</button>
+      <button class="toggle-btn" type="button" data-target="${title}-knockout" ${hasKnockout ? "" : "disabled"}>토너먼트</button>
+    </div>
+    <div class="view-panel" id="${title}-rank">
+      ${standingsRows.length ? standingsTable(standingsRows, true) : held ? `<p class="pending">순위는 경기 완료 후 반영됩니다.</p>` : `<p class="pending">이번 시즌에는 진행되지 않습니다.</p>`}
+    </div>
+    <div class="view-panel" id="${title}-knockout" hidden>${renderKnockoutScheduleTable(knockoutGroups, completed, teamNames)}</div>
   `;
 }
 
@@ -401,7 +482,7 @@ function extendAclTeamNames(teamNames, acl) {
 }
 
 function renderAclPanel(panel, league, acl, completed, teamNames) {
-  const activeTarget = panel.dataset.activeCupTarget || `${league}-groups`;
+  const activeTarget = panel.dataset.activeViewTarget || `${league}-rank`;
   const matches = Array.isArray(acl?.matches) ? acl.matches : [];
   const participants = Array.isArray(acl?.participants?.[league]) ? acl.participants[league] : [];
   const groupMatches = matches.filter((match) => String(match.stage || "") === `${league}_group`);
@@ -422,16 +503,36 @@ function renderAclPanel(panel, league, acl, completed, teamNames) {
     const groupRows = calculateStandings(teamIds, completedGroupMatches, teamNames);
     return `<section class="cup-group"><h3>Group ${groupName}</h3>${standingsTable(groupRows, false)}</section>`;
   }).join("");
+  const knockoutGroups = knockoutScheduleRows(knockoutMatches, completed, groupMatches);
+  const hasKnockout = knockoutGroups.length > 0;
+  const rankHidden = activeTarget === `${league}-knockout` && hasKnockout ? "hidden" : "";
+  const knockoutHidden = rankHidden ? "" : "hidden";
 
   panel.innerHTML = `
     <h2>${league}</h2>
-    <div class="cup-tabs">
-      <button class="cup-tab ${activeTarget === `${league}-groups` ? "active" : ""}" data-cup-target="${league}-groups">조별리그</button>
-      <button class="cup-tab ${activeTarget === `${league}-bracket` ? "active" : ""}" data-cup-target="${league}-bracket">토너먼트</button>
+    <div class="view-toggle" role="group" aria-label="${league} 보기">
+      <button class="toggle-btn ${rankHidden ? "" : "active"}" type="button" data-target="${league}-rank">조별리그 순위</button>
+      <button class="toggle-btn ${rankHidden ? "active" : ""}" type="button" data-target="${league}-knockout" ${hasKnockout ? "" : "disabled"}>토너먼트</button>
     </div>
-    <div class="cup-view" data-cup-view="${league}-groups" ${activeTarget === `${league}-groups` ? "" : "hidden"}>${groupsHtml || `<p class="pending">조별리그 경기가 없습니다.</p>`}</div>
-    <div class="cup-view" data-cup-view="${league}-bracket" ${activeTarget === `${league}-bracket` ? "" : "hidden"}>${renderBracket(knockoutMatches, completed, teamNames, groupMatches)}</div>
+    <div class="view-panel" id="${league}-rank" ${rankHidden}>${groupsHtml || `<p class="pending">조별리그 경기가 없습니다.</p>`}</div>
+    <div class="view-panel" id="${league}-knockout" ${knockoutHidden}>${renderKnockoutScheduleTable(knockoutGroups, completed, teamNames)}</div>
   `;
+}
+
+function wireViewToggles() {
+  document.querySelectorAll(".view-toggle").forEach((toggle) => {
+    toggle.querySelectorAll(".toggle-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const panel = button.closest(".panel");
+        if (button.disabled || !panel) return;
+        panel.dataset.activeViewTarget = button.dataset.target || "";
+        toggle.querySelectorAll(".toggle-btn").forEach((item) => item.classList.toggle("active", item === button));
+        panel.querySelectorAll(".view-panel").forEach((view) => {
+          view.hidden = view.id !== button.dataset.target;
+        });
+      });
+    });
+  });
 }
 
 function wireTabs() {
@@ -446,6 +547,7 @@ function wireTabs() {
       });
     });
   });
+  wireViewToggles();
 }
 
 function guardStandings(feeds, teams, cups, replayStartedAt) {
@@ -492,8 +594,7 @@ function guardStandings(feeds, teams, cups, replayStartedAt) {
           .flatMap((feed) => [String(feed.home_team_id || ""), String(feed.away_team_id || "")])
           .filter(Boolean)));
     const rows = calculateStandings(teamIds, matches, teamNames);
-    panel.querySelector("table")?.remove();
-    panel.insertAdjacentHTML("beforeend", standingsTable(rows, competition !== "league" && competition !== "super_cup"));
+    replaceViewContent(panel, `${competition}-rank`, standingsTable(rows, competition !== "league" && competition !== "super_cup"));
   });
   wireTabs();
 }
@@ -594,12 +695,11 @@ function guardStandingsFromReplay(snapshot, teams) {
     const title = panel.querySelector("h2");
     if (!title) return;
     const competition = title.textContent.trim();
-    panel.querySelector("table")?.remove();
     panel.querySelectorAll(".cup-tabs, .cup-view, .pending").forEach((node) => node.remove());
     if (competition === "league") {
-      panel.insertAdjacentHTML("beforeend", renderReplayStandingsTable(snapshot?.standings?.league || [], teamNames));
+      replaceViewContent(panel, "league-rank", renderReplayStandingsTable(snapshot?.standings?.league || [], teamNames));
     } else {
-      panel.insertAdjacentHTML("beforeend", `<p class="pending">이 페이지는 현재 tick JSON 기준 리그 순위를 표시합니다.</p>`);
+      replaceViewContent(panel, `${competition}-rank`, `<p class="pending">이 페이지는 현재 tick JSON 기준 리그 순위를 표시합니다.</p>`);
     }
   });
 }
@@ -669,6 +769,32 @@ function renderAclGroupStandingsFromReplay(league, replay, snapshot, teamNames) 
     .join("");
 }
 
+function aclKnockoutGroupsFromReplay(league, replay, snapshot) {
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
+  const schedule = Array.isArray(replay?.schedule) ? replay.schedule : [];
+  const groupMatches = schedule.filter((match) => String(match.stage || "") === `${league}_group`);
+  const knockoutMatches = schedule.filter((match) => {
+    const stage = String(match.stage || "");
+    if (!stage.startsWith(`${league}_`) || stage === `${league}_group`) return false;
+    return completedCount >= Number(match.reveal_after_count || 0);
+  });
+  return {
+    completed,
+    groups: knockoutScheduleRows(knockoutMatches, completed, groupMatches),
+  };
+}
+
+function setKnockoutButtonState(panel, target, enabled) {
+  const button = panel.querySelector(`.toggle-btn[data-target="${target}"]`);
+  if (!button) return;
+  button.disabled = !enabled;
+  if (!enabled && button.classList.contains("active")) {
+    const rankButton = panel.querySelector(".toggle-btn[data-target$='-rank']");
+    rankButton?.click();
+  }
+}
+
 function guardStandingsFromReplay(snapshot, teams, replay) {
   const teamNames = new Map((Array.isArray(teams) ? teams : []).map((team) => [String(team.id), String(team.name || team.id)]));
   extendAclTeamNames(teamNames, replay?.acl || {});
@@ -676,17 +802,19 @@ function guardStandingsFromReplay(snapshot, teams, replay) {
     const title = panel.querySelector("h2");
     if (!title) return;
     const competition = title.textContent.trim();
-    panel.querySelector("table")?.remove();
     panel.querySelectorAll(".cup-tabs, .cup-view, .pending, .cup-group").forEach((node) => node.remove());
     if (competition === "league") {
-      panel.insertAdjacentHTML("beforeend", renderReplayStandingsTable(snapshot?.standings?.league || [], teamNames));
+      replaceViewContent(panel, "league-rank", renderReplayStandingsTable(snapshot?.standings?.league || [], teamNames));
       return;
     }
     if (competition === "ACL1" || competition === "ACL2" || competition === "ACL3") {
-      panel.insertAdjacentHTML("beforeend", renderAclGroupStandingsFromReplay(competition, replay, snapshot, teamNames));
+      replaceViewContent(panel, `${competition}-rank`, renderAclGroupStandingsFromReplay(competition, replay, snapshot, teamNames));
+      const knockout = aclKnockoutGroupsFromReplay(competition, replay, snapshot);
+      replaceViewContent(panel, `${competition}-knockout`, renderKnockoutScheduleTable(knockout.groups, knockout.completed, teamNames));
+      setKnockoutButtonState(panel, `${competition}-knockout`, knockout.groups.length > 0);
       return;
     }
-    panel.insertAdjacentHTML("beforeend", `<p class="pending">Standings for this competition are not available in the current replay snapshot.</p>`);
+    replaceViewContent(panel, `${competition}-rank`, `<p class="pending">Standings for this competition are not available in the current replay snapshot.</p>`);
   });
 }
 

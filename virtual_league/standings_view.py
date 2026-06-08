@@ -80,6 +80,132 @@ def _cup_display_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     return ordered
 
 
+def _is_knockout_stage(stage: str) -> bool:
+    lower = stage.lower()
+    return any(
+        token in lower
+        for token in [
+            "preliminary",
+            "regional_po",
+            "r16",
+            "qf",
+            "sf",
+            "final",
+            "_po",
+            "_qf",
+            "_sf",
+            "_final",
+        ]
+    )
+
+
+def _competition_stage_key(name: str, stage: str) -> str:
+    lower = stage.lower()
+    if name in {"ACL1", "ACL2", "ACL3"} and lower.startswith(f"{name.lower()}_"):
+        return lower.removeprefix(f"{name.lower()}_")
+    return lower
+
+
+def _knockout_stage_order(stage: str) -> int:
+    lower = stage.lower()
+    if "preliminary" in lower:
+        return 0
+    if lower.endswith("_po") or lower in {"po", "regional_po"}:
+        return 1
+    if "r16" in lower:
+        return 2
+    if "qf" in lower:
+        return 3
+    if "sf" in lower:
+        return 4
+    if "final" in lower:
+        return 5
+    return 9
+
+
+def _team_label(team_id: str, names: dict[str, str]) -> str:
+    if not team_id:
+        return ""
+    return names.get(team_id, team_id)
+
+
+def _score_label(match: Match, names: dict[str, str]) -> str:
+    home = _team_label(match.home_team_id, names)
+    away = _team_label(match.away_team_id, names)
+    if match.home_score is None or match.away_score is None:
+        return f"{home} vs {away}"
+    return f"{home} {match.home_score}-{match.away_score} {away}"
+
+
+def _result_label(matches: list[Match], names: dict[str, str]) -> str:
+    if not matches:
+        return ""
+    latest = sorted(matches, key=lambda match: int(match.leg or 0))[-1]
+    if latest.winner_team_id:
+        return _team_label(latest.winner_team_id, names)
+    if any(match.home_score is None or match.away_score is None for match in matches):
+        return ""
+    scores: dict[str, int] = defaultdict(int)
+    for match in matches:
+        scores[match.home_team_id] += int(match.home_score or 0)
+        scores[match.away_team_id] += int(match.away_score or 0)
+    if len(scores) != 2:
+        return ""
+    ordered = sorted(scores.items(), key=lambda item: (item[1], item[0]), reverse=True)
+    if ordered[0][1] == ordered[1][1]:
+        return ""
+    return _team_label(ordered[0][0], names)
+
+
+def _confirmed_match(match: Match, known_team_ids: set[str]) -> bool:
+    return match.home_team_id in known_team_ids and match.away_team_id in known_team_ids
+
+
+def _build_knockout_rows(
+    name: str,
+    matches: list[Match],
+    names: dict[str, str],
+    known_team_ids: set[str],
+) -> list[dict[str, object]]:
+    knockout_matches = [
+        match for match in matches if _is_knockout_stage(str(match.stage)) and _confirmed_match(match, known_team_ids)
+    ]
+    grouped: dict[tuple[str, str, str, int], list[Match]] = defaultdict(list)
+    for match in knockout_matches:
+        key = (
+            _competition_stage_key(name, str(match.stage)),
+            str(match.round),
+            str(match.region or ""),
+            int(match.match_no or 0),
+        )
+        grouped[key].append(match)
+
+    rows = []
+    for (stage, round_label, region, match_no), group in sorted(
+        grouped.items(),
+        key=lambda item: (
+            _knockout_stage_order(item[0][0]),
+            int(min((match.week for match in item[1]), default=0)),
+            item[0][2],
+            item[0][3],
+        ),
+    ):
+        by_leg = {int(match.leg or 1): match for match in sorted(group, key=lambda match: int(match.leg or 0))}
+        leg1 = by_leg.get(1) or group[0]
+        leg2 = by_leg.get(2)
+        rows.append(
+            {
+                "round": round_label,
+                "region": region,
+                "match": match_no,
+                "leg1": _score_label(leg1, names),
+                "leg2": _score_label(leg2, names) if leg2 else "",
+                "winner": _result_label(group, names),
+            }
+        )
+    return rows
+
+
 def _build_acl_rows(
     league: str,
     matches: list[Match],
@@ -161,6 +287,7 @@ def build_competition_tables(
     teams: list[Team],
 ) -> dict[str, list[dict[str, object]]]:
     team_names = {team.id: team.name for team in teams}
+    known_team_ids = set(team_names)
     tables: dict[str, list[dict[str, object]]] = {}
 
     league_rows = []
@@ -247,6 +374,9 @@ def build_competition_tables(
                     }
                 )
             tables[name] = _cup_display_rows(rows)
+            knockout_rows = _build_knockout_rows(name, matches, team_names, known_team_ids)
+            if knockout_rows:
+                tables[f"__knockout__{name}"] = knockout_rows
             continue
 
         if name == "acl":
@@ -256,6 +386,7 @@ def build_competition_tables(
                 for item in league_items
                 if isinstance(item, dict)
             }
+            known_acl_ids = known_team_ids | set(participant_names)
             for league in ["ACL1", "ACL2", "ACL3"]:
                 league_matches = [m for m in matches if str(m.stage).startswith(f"{league}_")]
                 league_participants = [
@@ -266,6 +397,9 @@ def build_competition_tables(
                 rows = _build_acl_rows(league, league_matches, league_participants, participant_names)
                 if rows:
                     tables[league] = rows
+                    knockout_rows = _build_knockout_rows(league, league_matches, participant_names, known_acl_ids)
+                    if knockout_rows:
+                        tables[f"__knockout__{league}"] = knockout_rows
             continue
 
         table = team_table(matches)
@@ -278,6 +412,9 @@ def build_competition_tables(
             for team_id, stats in table.items()
         ]
         tables[name] = _rank_rows(rows)
+        knockout_rows = _build_knockout_rows(name, matches, team_names, known_team_ids)
+        if knockout_rows:
+            tables[f"__knockout__{name}"] = knockout_rows
 
     return tables
 
@@ -301,6 +438,8 @@ def write_standings_csv(path: Path, tables: dict[str, list[dict[str, object]]]) 
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for competition, rows in tables.items():
+            if competition.startswith("__knockout__"):
+                continue
             for row in rows:
                 writer.writerow(
                     {
@@ -325,10 +464,9 @@ def write_standings_html(path: Path, year: int, tables: dict[str, list[dict[str,
 
 
 def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]]) -> str:
-    sections = []
-    for name, rows in tables.items():
+    def render_rank_table(name: str, rows: list[dict[str, object]]) -> str:
         if not rows:
-            continue
+            return ""
         compact = name != "league" and name != "super_cup"
         if compact:
             headers = ["순위", "팀"]
@@ -342,25 +480,74 @@ def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]])
             + "</tr>"
             for row in rows
         )
-        section_class = "panel wide" if name == "league" else "panel"
-        sections.append(
-            f"""
-            <section class="{section_class}">
-              <h2>{escape(name)}</h2>
+        return f"""
               <table>
                 <thead>
                   <tr>{"".join(f"<th>{escape(header)}</th>" for header in headers)}</tr>
                 </thead>
                 <tbody>{body}</tbody>
               </table>
+        """
+
+    def render_knockout_table(rows: list[dict[str, object]]) -> str:
+        headers = ["라운드", "지역", "매치", "1차전", "2차전", "승자"]
+        columns = ["round", "region", "match", "leg1", "leg2", "winner"]
+        body = "".join(
+            "<tr>"
+            + "".join(f"<td>{escape(str(row.get(col, '')))}</td>" for col in columns)
+            + "</tr>"
+            for row in rows
+        )
+        return f"""
+              <table>
+                <thead>
+                  <tr>{"".join(f"<th>{escape(header)}</th>" for header in headers)}</tr>
+                </thead>
+                <tbody>{body}</tbody>
+              </table>
+        """
+
+    def render_section(name: str, rows: list[dict[str, object]]) -> str:
+        section_class = "panel wide" if name == "league" else "panel"
+        knockout_rows = tables.get(f"__knockout__{name}", [])
+        has_knockout = bool(knockout_rows)
+        rank_label = "조별리그 순위" if name.startswith("ACL") else "순위"
+        controls = ""
+        knockout_view = ""
+        if name != "league":
+            disabled_attr = "" if has_knockout else " disabled"
+            controls = f"""
+              <div class="view-toggle" role="group" aria-label="{escape(name)} 보기">
+                <button class="toggle-btn active" type="button" data-target="{escape(name)}-rank">{rank_label}</button>
+                <button class="toggle-btn" type="button" data-target="{escape(name)}-knockout"{disabled_attr}>토너먼트</button>
+              </div>
+            """
+            knockout_body = render_knockout_table(knockout_rows) if has_knockout else ""
+            knockout_view = f"""
+              <div class="view-panel" id="{escape(name)}-knockout" hidden>
+                {knockout_body}
+              </div>
+            """
+        return f"""
+            <section class="{section_class}">
+              <h2>{escape(name)}</h2>
+              {controls}
+              <div class="view-panel" id="{escape(name)}-rank">
+                {render_rank_table(name, rows)}
+              </div>
+              {knockout_view}
             </section>
             """
-        )
 
-    by_name = {name: section for name, section in zip(tables.keys(), sections)}
-    top_row = [by_name[name] for name in ["league", "super_cup"] if name in by_name]
-    middle_row = [by_name[name] for name in ["local_cup", "championship", "fa_cup"] if name in by_name]
-    bottom_row = [by_name[name] for name in ["ACL1", "ACL2", "ACL3"] if name in by_name]
+    sections: dict[str, str] = {}
+    for name, rows in tables.items():
+        if name.startswith("__knockout__") or not rows:
+            continue
+        sections[name] = render_section(name, rows)
+
+    top_row = [sections[name] for name in ["league", "super_cup"] if name in sections]
+    middle_row = [sections[name] for name in ["local_cup", "championship", "fa_cup"] if name in sections]
+    bottom_row = [sections[name] for name in ["ACL1", "ACL2", "ACL3"] if name in sections]
 
     def wrap_row(items: list[str], class_name: str) -> str:
         if not items:
@@ -373,7 +560,7 @@ def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]])
             wrap_row(top_row, "top"),
             wrap_row(middle_row, "middle"),
             wrap_row(bottom_row, "bottom"),
-            "".join(section for name, section in by_name.items() if name not in {"league", "super_cup", "local_cup", "championship", "fa_cup", "ACL1", "ACL2", "ACL3"}),
+            "".join(section for name, section in sections.items() if name not in {"league", "super_cup", "local_cup", "championship", "fa_cup", "ACL1", "ACL2", "ACL3"}),
         ]
         if item
     )
@@ -444,6 +631,36 @@ def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]])
       font-size: 16px;
       text-transform: none;
     }}
+    .view-toggle {{
+      display: inline-flex;
+      gap: 4px;
+      margin: 0 0 12px;
+      padding: 3px;
+      background: #eef3f9;
+      border: 1px solid #d8dee8;
+      border-radius: 7px;
+    }}
+    .toggle-btn {{
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 10px;
+      background: transparent;
+      color: #344054;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }}
+    .toggle-btn.active {{
+      background: #172033;
+      color: #fff;
+    }}
+    .toggle-btn:disabled {{
+      color: #98a2b3;
+      cursor: not-allowed;
+    }}
+    .view-panel {{
+      overflow-x: auto;
+    }}
     table {{
       width: 100%;
       border-collapse: collapse;
@@ -469,6 +686,23 @@ def render_standings_html(year: int, tables: dict[str, list[dict[str, object]]])
   <main class="grid">
     {rows_html}
   </main>
+  <script>
+    document.querySelectorAll(".view-toggle").forEach((toggle) => {{
+      const panel = toggle.closest(".panel");
+      toggle.querySelectorAll(".toggle-btn").forEach((button) => {{
+        button.addEventListener("click", () => {{
+          if (button.disabled || !panel) {{
+            return;
+          }}
+          toggle.querySelectorAll(".toggle-btn").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          panel.querySelectorAll(".view-panel").forEach((view) => {{
+            view.hidden = view.id !== button.dataset.target;
+          }});
+        }});
+      }});
+    }});
+  </script>
   <script src="./spoiler_guard.js?v=sync-clock-11" defer></script>
 </body>
 </html>"""

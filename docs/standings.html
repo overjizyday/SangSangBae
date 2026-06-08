@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>1970 대회 성적표</title>
+  <title>1971 대회 성적표</title>
   <style>
     * {
       box-sizing: border-box;
@@ -64,6 +64,36 @@
       font-size: 16px;
       text-transform: none;
     }
+    .view-toggle {
+      display: inline-flex;
+      gap: 4px;
+      margin: 0 0 12px;
+      padding: 3px;
+      background: #eef3f9;
+      border: 1px solid #d8dee8;
+      border-radius: 7px;
+    }
+    .toggle-btn {
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 10px;
+      background: transparent;
+      color: #344054;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .toggle-btn.active {
+      background: #172033;
+      color: #fff;
+    }
+    .toggle-btn:disabled {
+      color: #98a2b3;
+      cursor: not-allowed;
+    }
+    .view-panel {
+      overflow-x: auto;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -83,52 +113,230 @@
 </head>
 <body>
   <header>
-    <h1>1970 대회 성적표</h1>
+    <h1>1971 대회 성적표</h1>
     <div class="sub">리그와 각 컵대회의 누적 성적</div>
   </header>
   <main class="grid">
     <section class="row top">
             <section class="panel wide">
               <h2>league</h2>
+              
+              <div class="view-panel" id="league-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
                 </thead>
                 <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
               </table>
+        
+              </div>
+              
+            </section>
+            
+            <section class="panel">
+              <h2>super_cup</h2>
+              
+              <div class="view-toggle" role="group" aria-label="super_cup 보기">
+                <button class="toggle-btn active" type="button" data-target="super_cup-rank">순위</button>
+                <button class="toggle-btn" type="button" data-target="super_cup-knockout" disabled>토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="super_cup-rank">
+                
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+              
+              <div class="view-panel" id="super_cup-knockout" hidden>
+                
+              </div>
+            
+            </section>
+            </section><section class="row middle">
+            <section class="panel">
+              <h2>local_cup</h2>
+              
+              <div class="view-toggle" role="group" aria-label="local_cup 보기">
+                <button class="toggle-btn active" type="button" data-target="local_cup-rank">순위</button>
+                <button class="toggle-btn" type="button" data-target="local_cup-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="local_cup-rank">
+                
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+              
+              <div class="view-panel" id="local_cup-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+            
+            </section>
+            
+            <section class="panel">
+              <h2>championship</h2>
+              
+              <div class="view-toggle" role="group" aria-label="championship 보기">
+                <button class="toggle-btn active" type="button" data-target="championship-rank">순위</button>
+                <button class="toggle-btn" type="button" data-target="championship-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="championship-rank">
+                
+              <table>
+                <thead>
+                  <tr><th>순위</th><th>팀</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+              
+              <div class="view-panel" id="championship-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             </section><section class="row bottom">
             <section class="panel">
               <h2>ACL1</h2>
+              
+              <div class="view-toggle" role="group" aria-label="ACL1 보기">
+                <button class="toggle-btn active" type="button" data-target="ACL1-rank">조별리그 순위</button>
+                <button class="toggle-btn" type="button" data-target="ACL1-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="ACL1-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
                 <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
               </table>
+        
+              </div>
+              
+              <div class="view-panel" id="ACL1-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             
             <section class="panel">
               <h2>ACL2</h2>
+              
+              <div class="view-toggle" role="group" aria-label="ACL2 보기">
+                <button class="toggle-btn active" type="button" data-target="ACL2-rank">조별리그 순위</button>
+                <button class="toggle-btn" type="button" data-target="ACL2-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="ACL2-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
                 <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
               </table>
+        
+              </div>
+              
+              <div class="view-panel" id="ACL2-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             
             <section class="panel">
               <h2>ACL3</h2>
+              
+              <div class="view-toggle" role="group" aria-label="ACL3 보기">
+                <button class="toggle-btn active" type="button" data-target="ACL3-rank">조별리그 순위</button>
+                <button class="toggle-btn" type="button" data-target="ACL3-knockout">토너먼트</button>
+              </div>
+            
+              <div class="view-panel" id="ACL3-rank">
+                
               <table>
                 <thead>
                   <tr><th>순위</th><th>팀</th></tr>
                 </thead>
                 <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
               </table>
+        
+              </div>
+              
+              <div class="view-panel" id="ACL3-knockout" hidden>
+                
+              <table>
+                <thead>
+                  <tr><th>라운드</th><th>지역</th><th>매치</th><th>1차전</th><th>2차전</th><th>승자</th></tr>
+                </thead>
+                <tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>
+              </table>
+        
+              </div>
+            
             </section>
             </section>
   </main>
+  <script>
+    document.querySelectorAll(".view-toggle").forEach((toggle) => {
+      const panel = toggle.closest(".panel");
+      toggle.querySelectorAll(".toggle-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (button.disabled || !panel) {
+            return;
+          }
+          toggle.querySelectorAll(".toggle-btn").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          panel.querySelectorAll(".view-panel").forEach((view) => {
+            view.hidden = view.id !== button.dataset.target;
+          });
+        });
+      });
+    });
+  </script>
   <script src="./spoiler_guard.js?v=tick-chunks-3" defer></script>
 </body>
 </html>
