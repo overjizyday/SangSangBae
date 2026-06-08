@@ -340,6 +340,8 @@ def create_season(
 
         super_cup = generate_super_cup(season_teams, previous_standings, previous_cup_results)
         if super_cup["held"]:
+            resolve_super_cup(super_cup, seed=seed + year)
+        if super_cup["held"]:
             metadata.competitions.append("super_cup")
         competition_payloads.append(super_cup)
 
@@ -357,7 +359,7 @@ def create_season(
         resolve_linear_bracket(championship, seed=seed + year)
     if isinstance(fa_cup, dict):
         resolve_linear_bracket(fa_cup, seed=seed + year)
-    if isinstance(super_cup, dict):
+    if isinstance(super_cup, dict) and "standings" not in super_cup:
         resolve_super_cup(super_cup, seed=seed + year)
     if isinstance(acl, dict):
         resolve_acl(acl, seed=seed + year, year=year)

@@ -4,7 +4,7 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-from virtual_league.acl import association_city_pool, generate_acl, rank_countries
+from virtual_league.acl import _super_cup_acl_candidates, association_city_pool, generate_acl, rank_countries
 from virtual_league.acl_view import render_acl_participants_html
 from virtual_league.models import Match, Team
 from virtual_league.standings_view import build_competition_tables
@@ -38,6 +38,32 @@ def standings(count: int) -> list[dict[str, object]]:
 
 
 class AclTests(unittest.TestCase):
+    def test_korean_acl_candidates_use_super_cup_final_standings(self):
+        teams = make_teams(6)
+        super_cup = {
+            "held": True,
+            "entrants": [
+                {"team_id": "T01", "points": 10},
+                {"team_id": "T02", "points": 5},
+                {"team_id": "T03", "points": 1},
+                {"team_id": "T04", "points": 0},
+                {"team_id": "T05", "points": 0},
+                {"team_id": "T06", "points": 0},
+            ],
+            "standings": [
+                {"team_id": "T01", "team_name": "Team 01", "points": 17},
+                {"team_id": "T02", "team_name": "Team 02", "points": 14},
+                {"team_id": "T03", "team_name": "Team 03", "points": 11},
+                {"team_id": "T06", "team_name": "Team 06", "points": 6},
+                {"team_id": "T05", "team_name": "Team 05", "points": 4},
+                {"team_id": "T04", "team_name": "Team 04", "points": 3},
+            ],
+        }
+
+        candidates = _super_cup_acl_candidates(super_cup, teams)
+
+        self.assertEqual([row["team_id"] for row in candidates[:5]], ["T01", "T02", "T03", "T06", "T05"])
+
     def test_country_ranking_has_west_and_east_a_to_v(self):
         ranking = rank_countries(51)
 

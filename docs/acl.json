@@ -1254,54 +1254,59 @@
   "korea_country": "대한민국",
   "korean_qualifiers": [
     {
-      "team_id": "T02",
-      "team_name": "대구",
-      "slot": "B",
-      "country": "대한민국",
-      "region": "east",
-      "super_cup_points": 15,
-      "super_cup_table_points": 0,
-      "acl_score": 15
-    },
-    {
       "team_id": "T01",
       "team_name": "서산",
       "slot": "B",
-      "country": "대한민국",
+      "country": "????",
       "region": "east",
-      "super_cup_points": 8,
-      "super_cup_table_points": 0,
-      "acl_score": 8
+      "league_rank": 2,
+      "super_cup_points": 5,
+      "super_cup_table_points": 12,
+      "acl_score": 17
+    },
+    {
+      "team_id": "T02",
+      "team_name": "대구",
+      "slot": "B",
+      "country": "????",
+      "region": "east",
+      "league_rank": 1,
+      "super_cup_points": 10,
+      "super_cup_table_points": 7,
+      "acl_score": 17
     },
     {
       "team_id": "T03",
       "team_name": "부산",
       "slot": "B",
-      "country": "대한민국",
+      "country": "????",
       "region": "east",
-      "super_cup_points": 3,
-      "super_cup_table_points": 0,
-      "acl_score": 3
+      "league_rank": 3,
+      "super_cup_points": 1,
+      "super_cup_table_points": 10,
+      "acl_score": 11
     },
     {
-      "team_id": "T14",
-      "team_name": "제주",
+      "team_id": "T06",
+      "team_name": "동대문",
       "slot": "B",
-      "country": "대한민국",
+      "country": "????",
       "region": "east",
-      "super_cup_points": 1,
-      "super_cup_table_points": 0,
-      "acl_score": 1
+      "league_rank": 5,
+      "super_cup_points": 0,
+      "super_cup_table_points": 6,
+      "acl_score": 6
     },
     {
       "team_id": "T10",
       "team_name": "춘천",
       "slot": "B",
-      "country": "대한민국",
+      "country": "????",
       "region": "east",
+      "league_rank": 6,
       "super_cup_points": 0,
-      "super_cup_table_points": 0,
-      "acl_score": 0
+      "super_cup_table_points": 4,
+      "acl_score": 4
     }
   ],
   "last_champions": {
@@ -1528,8 +1533,8 @@
         "region": "east"
       },
       {
-        "team_id": "T14",
-        "team_name": "제주",
+        "team_id": "T06",
+        "team_name": "동대문",
         "slot": "B",
         "country": "대한민국",
         "region": "east"
@@ -2083,10 +2088,10 @@
       "match_no": 2,
       "leg": 1,
       "home_team_id": "THA_C_FC3",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "home_score": 4,
       "away_score": 6,
-      "winner": "T14",
+      "winner": "T06",
       "loser": "THA_C_FC3",
       "winner_to": "ACL1",
       "loser_to": "ACL2"
@@ -2160,7 +2165,7 @@
       ],
       "F": [
         "JPN_A_FC3",
-        "T14",
+        "T06",
         "CHN_D_FC2",
         "SGP_E_FC"
       ],
@@ -2381,7 +2386,7 @@
       "round": "PO",
       "week": 3,
       "home_team_id": "THA_C_FC3",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "match_no": 2,
       "region": "east",
       "group": null,
@@ -2390,7 +2395,7 @@
       "day": "수",
       "home_score": 4,
       "away_score": 6,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "THA_C_FC3"
     },
     {
@@ -3578,7 +3583,7 @@
       "round": 1,
       "week": 4,
       "home_team_id": "JPN_A_FC3",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "match_no": 61,
       "region": "east",
       "group": "F",
@@ -3587,7 +3592,7 @@
       "day": "수",
       "home_score": 4,
       "away_score": 5,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "JPN_A_FC3"
     },
     {
@@ -3634,7 +3639,7 @@
       "stage": "ACL1_group",
       "round": 2,
       "week": 6,
-      "home_team_id": "T14",
+      "home_team_id": "T06",
       "away_team_id": "CHN_D_FC2",
       "match_no": 64,
       "region": "east",
@@ -3644,7 +3649,7 @@
       "day": "수",
       "home_score": 7,
       "away_score": 6,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "CHN_D_FC2"
     },
     {
@@ -3672,7 +3677,7 @@
       "stage": "ACL1_group",
       "round": 3,
       "week": 8,
-      "home_team_id": "T14",
+      "home_team_id": "T06",
       "away_team_id": "SGP_E_FC",
       "match_no": 66,
       "region": "east",
@@ -3682,7 +3687,7 @@
       "day": "수",
       "home_score": 5,
       "away_score": 4,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "SGP_E_FC"
     },
     {
@@ -3691,7 +3696,7 @@
       "stage": "ACL1_group",
       "round": 4,
       "week": 10,
-      "home_team_id": "T14",
+      "home_team_id": "T06",
       "away_team_id": "JPN_A_FC3",
       "match_no": 67,
       "region": "east",
@@ -3702,7 +3707,7 @@
       "home_score": 7,
       "away_score": 9,
       "winner_team_id": "JPN_A_FC3",
-      "loser_team_id": "T14"
+      "loser_team_id": "T06"
     },
     {
       "id": "ACL1-GF-R4-068",
@@ -3749,7 +3754,7 @@
       "round": 5,
       "week": 12,
       "home_team_id": "SGP_E_FC",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "match_no": 70,
       "region": "east",
       "group": "F",
@@ -3758,7 +3763,7 @@
       "day": "수",
       "home_score": 2,
       "away_score": 11,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "SGP_E_FC"
     },
     {
@@ -3787,7 +3792,7 @@
       "round": 6,
       "week": 14,
       "home_team_id": "CHN_D_FC2",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "match_no": 72,
       "region": "east",
       "group": "F",
@@ -3797,7 +3802,7 @@
       "home_score": 5,
       "away_score": 2,
       "winner_team_id": "CHN_D_FC2",
-      "loser_team_id": "T14"
+      "loser_team_id": "T06"
     },
     {
       "id": "ACL1-GG-R1-073",
@@ -4376,7 +4381,7 @@
       "round": "QF",
       "week": 19,
       "home_team_id": "T02",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "match_no": 1,
       "region": "east",
       "group": null,
@@ -4386,7 +4391,7 @@
       "home_score": 7,
       "away_score": 1,
       "winner_team_id": "T02",
-      "loser_team_id": "T14"
+      "loser_team_id": "T06"
     },
     {
       "id": "ACL1-east-QF-001-2",
@@ -4394,7 +4399,7 @@
       "stage": "ACL1_qf",
       "round": "QF",
       "week": 20,
-      "home_team_id": "T14",
+      "home_team_id": "T06",
       "away_team_id": "T02",
       "match_no": 1,
       "region": "east",
@@ -4404,7 +4409,7 @@
       "day": "수",
       "home_score": 13,
       "away_score": 0,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "T02"
     },
     {
@@ -4451,7 +4456,7 @@
       "stage": "ACL1_sf",
       "round": "SF",
       "week": 24,
-      "home_team_id": "T14",
+      "home_team_id": "T06",
       "away_team_id": "JPN_A_FC3",
       "match_no": 1,
       "region": "east",
@@ -4461,7 +4466,7 @@
       "day": "수",
       "home_score": 6,
       "away_score": 3,
-      "winner_team_id": "T14",
+      "winner_team_id": "T06",
       "loser_team_id": "JPN_A_FC3"
     },
     {
@@ -4471,7 +4476,7 @@
       "round": "SF",
       "week": 25,
       "home_team_id": "JPN_A_FC3",
-      "away_team_id": "T14",
+      "away_team_id": "T06",
       "match_no": 1,
       "region": "east",
       "group": null,
@@ -4481,7 +4486,7 @@
       "home_score": 6,
       "away_score": 2,
       "winner_team_id": "JPN_A_FC3",
-      "loser_team_id": "T14"
+      "loser_team_id": "T06"
     },
     {
       "id": "ACL1-FINAL-001",

@@ -739,25 +739,36 @@ def _super_cup_acl_candidates(super_cup: dict[str, object] | None, teams: Sequen
     names = {team.id: team.name for team in teams}
     if not super_cup or not super_cup.get("held"):
         return []
+    entrants_by_id = {
+        str(entrant.get("team_id")): entrant
+        for entrant in super_cup.get("entrants", [])
+        if isinstance(entrant, dict) and entrant.get("team_id")
+    }
+    standings = super_cup.get("standings")
+    source_rows = standings if isinstance(standings, list) and standings else super_cup.get("entrants", [])
     rows = []
-    for entrant in super_cup.get("entrants", []):
-        if not isinstance(entrant, dict):
+    for source in source_rows:
+        if not isinstance(source, dict):
             continue
-        points = int(entrant.get("points", 0))
-        table_points = int(entrant.get("super_cup_table_points", 0))
+        team_id = str(source["team_id"])
+        entrant = entrants_by_id.get(team_id, {})
+        base_points = int(entrant.get("points", 0))
+        final_points = int(source.get("points", base_points))
+        table_points = int(source.get("super_cup_table_points", final_points - base_points))
         rows.append(
             {
-                "team_id": str(entrant["team_id"]),
-                "team_name": names.get(str(entrant["team_id"]), str(entrant.get("team_name", entrant["team_id"]))),
+                "team_id": team_id,
+                "team_name": names.get(team_id, str(source.get("team_name", entrant.get("team_name", team_id)))),
                 "slot": "B",
                 "country": "대한민국",
                 "region": "east",
-                "super_cup_points": points,
+                "league_rank": entrant.get("league_rank"),
+                "super_cup_points": base_points,
                 "super_cup_table_points": table_points,
-                "acl_score": points + table_points,
+                "acl_score": final_points,
             }
         )
-    rows.sort(key=lambda row: (int(row["acl_score"]), str(row["team_name"])), reverse=True)
+    rows.sort(key=lambda row: (-int(row["acl_score"]), -int(row["super_cup_table_points"]), str(row["team_name"])))
     return rows
 
 
