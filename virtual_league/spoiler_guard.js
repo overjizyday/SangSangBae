@@ -604,6 +604,32 @@ function guardStandingsFromReplay(snapshot, teams) {
   });
 }
 
+function guardCalendarFromReplay(replay, snapshot) {
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
+  const scheduleById = new Map((replay.schedule || []).map((match) => [String(match.match_id || ""), match]));
+  document.querySelectorAll(".match").forEach((matchEl) => {
+    const scoreEl = matchEl.querySelector(".score");
+    if (!scoreEl) return;
+    const matchId = String(matchEl.dataset.matchId || "");
+    const match = scheduleById.get(matchId);
+    const revealed = match && completedCount >= Number(match.reveal_after_count || 0);
+    matchEl.hidden = !revealed;
+    if (!revealed) return;
+    if (!match || !completed.has(matchId)) {
+      scoreEl.textContent = "Scheduled";
+      scoreEl.style.color = "#9aa3af";
+      return;
+    }
+    scoreEl.textContent = `${Number(match.away_score || 0)} - ${Number(match.home_score || 0)}`;
+    scoreEl.style.color = "";
+  });
+  document.querySelectorAll("details.fold").forEach((fold) => {
+    const visibleMatches = Array.from(fold.querySelectorAll(".match")).filter((match) => !match.hidden);
+    fold.hidden = visibleMatches.length === 0;
+  });
+}
+
 async function main() {
   const [manifest, teams] = await Promise.all([
     fetch("./replay_manifest.json", { cache: "no-store" }).then((r) => r.json()),

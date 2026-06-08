@@ -60,7 +60,7 @@ def _ensure_spoiler_guard(page: Path) -> None:
     if not page.exists():
         return
     html = page.read_text(encoding="utf-8")
-    script = '<script src="./spoiler_guard.js?v=tick-chunks-1" defer></script>'
+    script = '<script src="./spoiler_guard.js?v=tick-chunks-2" defer></script>'
     if "spoiler_guard.js" in html:
         html = re.sub(r'<script src="\./spoiler_guard\.js\?v=[^"]+" defer></script>', script, html)
         page.write_text(html, encoding="utf-8")
@@ -74,6 +74,8 @@ def _strip_calendar_scores(page: Path) -> None:
         return
     html = page.read_text(encoding="utf-8")
     html = re.sub(r'<div class="score">.*?</div>', '<div class="score">예정</div>', html)
+    html = re.sub(r'<div class="match ', '<div hidden class="match ', html)
+    html = re.sub(r'<details class="fold"', '<details hidden class="fold"', html)
     page.write_text(html, encoding="utf-8")
 
 
@@ -471,7 +473,7 @@ def _build_index_html(season_year: int) -> str:
       </section>
     </main>
   </div>
-  <script src="./app.js?v=tick-chunks-1" defer></script>
+  <script src="./app.js?v=tick-chunks-2" defer></script>
 </body>
 </html>
 """

@@ -216,7 +216,68 @@ def _completed_matches(feeds: list[dict[str, Any]], progress: dict[str, int]) ->
     return matches
 
 
-def _schedule_rows(feeds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _stage_reveal_group(feed: dict[str, Any]) -> str:
+    competition = str(feed.get("competition") or "")
+    stage = str(feed.get("stage") or "")
+    if competition == "acl" and "_" in stage:
+        return stage.split("_", 1)[0]
+    return competition
+
+
+def _stage_order(stage: str) -> int:
+    phase = stage.split("_", 1)[1] if stage.startswith("ACL") and "_" in stage else stage
+    if stage.startswith("ACL"):
+        return {
+            "po": 0,
+            "group": 1,
+            "qf": 2,
+            "sf": 3,
+            "final": 4,
+        }.get(phase, 0)
+    order = {
+        "regular": 0,
+        "group": 0,
+        "po": 0,
+        "preliminary": 0,
+        "regional_po": 1,
+        "qf": 2,
+        "sf": 3,
+        "final": 4,
+    }
+    return order.get(phase, 0)
+
+
+def _reveal_after_counts(feeds: list[dict[str, Any]], completion_order: list[str]) -> dict[str, int]:
+    completion_index = {match_id: index + 1 for index, match_id in enumerate(completion_order)}
+    stages_by_group: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for feed in feeds:
+        group = _stage_reveal_group(feed)
+        stage = str(feed.get("stage") or "")
+        stages_by_group.setdefault(group, {}).setdefault(stage, []).append(feed)
+
+    reveal_after_by_stage: dict[tuple[str, str], int] = {}
+    for group, stages in stages_by_group.items():
+        ordered_stages = sorted(stages, key=lambda item: (_stage_order(item), item))
+        for stage in ordered_stages:
+            prior_stages = [prior for prior in ordered_stages if _stage_order(prior) < _stage_order(stage)]
+            reveal_after = 0
+            for prior_stage in prior_stages:
+                for prior_feed in stages[prior_stage]:
+                    match_id = str(prior_feed.get("match_id") or "")
+                    reveal_after = max(reveal_after, completion_index.get(match_id, 0))
+            reveal_after_by_stage[(group, stage)] = reveal_after
+
+    return {
+        str(feed.get("match_id") or ""): reveal_after_by_stage.get(
+            (_stage_reveal_group(feed), str(feed.get("stage") or "")),
+            0,
+        )
+        for feed in feeds
+    }
+
+
+def _schedule_rows(feeds: list[dict[str, Any]], completion_order: list[str]) -> list[dict[str, Any]]:
+    reveal_after_counts = _reveal_after_counts(feeds, completion_order)
     rows = []
     for feed in sorted(feeds, key=_day_sort_key):
         match_id = str(feed.get("match_id") or "")
@@ -231,6 +292,7 @@ def _schedule_rows(feeds: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "away_team_id": str(feed.get("away_team_id") or ""),
             "home_score": int(feed.get("home_score") or 0),
             "away_score": int(feed.get("away_score") or 0),
+            "reveal_after_count": reveal_after_counts.get(match_id, 0),
         }
         rows.append(row)
     return rows
@@ -324,7 +386,7 @@ def build_replay_ticks(
         "total_ticks": total_ticks,
         "total_duration_seconds": offset_seconds,
         "generated_at": datetime.now(UTC).isoformat(),
-        "schedule": _schedule_rows(feeds),
+        "schedule": _schedule_rows(feeds, completion_order),
         "completion_order": completion_order,
         "ticks": ticks,
     }

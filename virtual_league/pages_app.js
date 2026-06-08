@@ -678,12 +678,14 @@ function selectTickFromChunk(chunkPayload, nowMs = Date.now()) {
 }
 
 function upcomingScheduleItemsFromSnapshot(replay, snapshot, limit = 7) {
-  const completed = new Set((replay?.completion_order || []).slice(0, Number(snapshot?.completed_count || 0)));
+  const completedCount = Number(snapshot?.completed_count || 0);
+  const completed = new Set((replay?.completion_order || []).slice(0, completedCount));
   const active = new Set((snapshot?.active_matches || []).map((match) => String(match.match_id || "")));
   const rows = [];
   for (const match of replay?.schedule || []) {
     const matchId = String(match.match_id || "");
     if (!matchId || completed.has(matchId) || active.has(matchId)) continue;
+    if (completedCount < Number(match.reveal_after_count || 0)) continue;
     rows.push(match);
     if (rows.length >= limit) break;
   }
