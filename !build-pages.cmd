@@ -15,6 +15,20 @@ if not defined LATEST_SEASON (
 python -m virtual_league.cli build-pages --seasons-dir seasons --output docs --season-dir "%LATEST_SEASON%"
 set "EXIT_CODE=%ERRORLEVEL%"
 
+if not "%EXIT_CODE%"=="0" goto :done
+
+git add docs
+git diff --cached --quiet
+if "%ERRORLEVEL%"=="0" (
+  echo No Pages changes to commit.
+) else (
+  git commit -m "Publish GitHub Pages"
+  if not "%ERRORLEVEL%"=="0" goto :done
+  git push
+  set "EXIT_CODE=%ERRORLEVEL%"
+)
+
+:done
 popd
 if not "%EXIT_CODE%"=="0" pause
 exit /b %EXIT_CODE%
