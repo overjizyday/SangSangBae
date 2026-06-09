@@ -20,13 +20,14 @@ if not "%EXIT_CODE%"=="0" goto :done
 git add docs
 git diff --cached --quiet
 if "%ERRORLEVEL%"=="0" (
-  echo No Pages changes to commit.
+  echo No Pages file changes. Creating an empty publish commit to trigger GitHub Pages.
+  git commit --allow-empty -m "Publish GitHub Pages"
 ) else (
   git commit -m "Publish GitHub Pages"
-  if not "%ERRORLEVEL%"=="0" goto :done
-  git push
-  set "EXIT_CODE=%ERRORLEVEL%"
 )
+if not "%ERRORLEVEL%"=="0" goto :done
+git push
+set "EXIT_CODE=%ERRORLEVEL%"
 
 :done
 popd
