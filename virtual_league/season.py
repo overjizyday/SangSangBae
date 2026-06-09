@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import secrets
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -273,6 +274,19 @@ def _apply_league_final_round_floor(
     return combined
 
 
+def _strip_standings_tables(page: Path) -> None:
+    if not page.exists():
+        return
+    html = page.read_text(encoding="utf-8")
+    html = re.sub(
+        r"<tbody>.*?</tbody>",
+        '<tbody><tr><td colspan="10">진행 상황 불러오는 중</td></tr></tbody>',
+        html,
+        flags=re.DOTALL,
+    )
+    page.write_text(html, encoding="utf-8")
+
+
 def create_season(
     seasons_dir: Path | str = "seasons",
     teams: Iterable[Team] | None = None,
@@ -402,6 +416,7 @@ def create_season(
     write_json(season_dir / "live_feed.json", live_traces)
     write_standings_csv(season_dir / "standings.csv", competition_tables)
     write_standings_html(season_dir / "standings.html", year, competition_tables)
+    _strip_standings_tables(season_dir / "standings.html")
     write_calendar_html(season_dir / "calendar.html", year, season_teams, simulated_schedule, competition_payloads)
     for payload in competition_payloads:
         if payload.get("held") and payload.get("matches") and payload.get("korea_slot"):

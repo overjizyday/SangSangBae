@@ -508,6 +508,7 @@ def write_pages_site(
     _ensure_spoiler_guard(output_dir / "calendar.html")
     _strip_calendar_scores(output_dir / "calendar.html")
     _ensure_spoiler_guard(output_dir / "standings.html")
+    _strip_standings_tables(output_dir / "standings.html")
 
     season_json_path = season_dir / "season.json"
     season_year = int(season_dir.name) if season_dir.name.isdigit() else 0

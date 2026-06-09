@@ -141,12 +141,18 @@ class AclTests(unittest.TestCase):
         self.assertEqual(len(group_matches), 288)
         self.assertEqual(set(match.week for match in group_matches), {4, 6, 8, 10, 12, 14})
 
+        r16_matches = [match for match in acl["matches"] if match.round == "R16"]
         qf_matches = [match for match in acl["matches"] if match.round == "QF"]
         sf_matches = [match for match in acl["matches"] if match.round == "SF"]
         finals = [match for match in acl["matches"] if match.round == "Final"]
+        self.assertEqual(len(r16_matches), 48)
         self.assertEqual(len(qf_matches), 24)
         self.assertEqual(len(sf_matches), 12)
         self.assertEqual(len(finals), 3)
+        self.assertEqual(set(match.week for match in r16_matches), {19, 20})
+        self.assertEqual(set(match.week for match in qf_matches), {23, 24})
+        self.assertEqual(set(match.week for match in sf_matches), {27, 28})
+        self.assertEqual(set(match.week for match in finals), {32})
         self.assertTrue(all(match.home_team_id == "west_SF_1" for match in finals if acl["final_home_region"] == "west"))
         self.assertTrue(all(match.home_team_id == "east_SF_1" for match in finals if acl["final_home_region"] == "east"))
 

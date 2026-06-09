@@ -262,6 +262,11 @@ def _build_acl_rows(
                 stage_rank[match.winner_team_id] = max(stage_rank[match.winner_team_id], 3)
             if match.loser_team_id:
                 stage_rank[match.loser_team_id] = max(stage_rank[match.loser_team_id], 2)
+        elif stage.endswith("_r16"):
+            if match.winner_team_id:
+                stage_rank[match.winner_team_id] = max(stage_rank[match.winner_team_id], 2)
+            if match.loser_team_id:
+                stage_rank[match.loser_team_id] = max(stage_rank[match.loser_team_id], 1)
         elif stage.endswith("_po"):
             if match.winner_team_id:
                 stage_rank[match.winner_team_id] = max(stage_rank[match.winner_team_id], 2)

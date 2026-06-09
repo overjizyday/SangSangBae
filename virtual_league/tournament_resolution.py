@@ -611,10 +611,10 @@ def resolve_acl(payload: dict[str, object], seed: int = 7, year: int = 1970) -> 
             if len(rows) >= 2:
                 east_advancers.extend([rows[0]["team_id"], rows[1]["team_id"]])
 
-        west_qf = [m for m in league_matches if m.stage.endswith("_qf") and m.region == "west"]
-        east_qf = [m for m in league_matches if m.stage.endswith("_qf") and m.region == "east"]
-        west_qf_winners = _resolve_two_leg_pairs(
-            west_qf,
+        west_r16 = [m for m in league_matches if m.stage.endswith("_r16") and m.region == "west"]
+        east_r16 = [m for m in league_matches if m.stage.endswith("_r16") and m.region == "east"]
+        west_r16_winners = _resolve_two_leg_pairs(
+            west_r16,
             [
                 (west_advancers[0], west_advancers[3]),
                 (west_advancers[2], west_advancers[1]),
@@ -623,13 +623,32 @@ def resolve_acl(payload: dict[str, object], seed: int = 7, year: int = 1970) -> 
             ],
             rng,
         )
-        east_qf_winners = _resolve_two_leg_pairs(
-            east_qf,
+        east_r16_winners = _resolve_two_leg_pairs(
+            east_r16,
             [
                 (east_advancers[0], east_advancers[3]),
                 (east_advancers[2], east_advancers[1]),
                 (east_advancers[4], east_advancers[7]),
                 (east_advancers[6], east_advancers[5]),
+            ],
+            rng,
+        )
+
+        west_qf = [m for m in league_matches if m.stage.endswith("_qf") and m.region == "west"]
+        east_qf = [m for m in league_matches if m.stage.endswith("_qf") and m.region == "east"]
+        west_qf_winners = _resolve_two_leg_pairs(
+            west_qf,
+            [
+                (west_r16_winners[0], west_r16_winners[3]),
+                (west_r16_winners[2], west_r16_winners[1]),
+            ],
+            rng,
+        )
+        east_qf_winners = _resolve_two_leg_pairs(
+            east_qf,
+            [
+                (east_r16_winners[0], east_r16_winners[3]),
+                (east_r16_winners[2], east_r16_winners[1]),
             ],
             rng,
         )

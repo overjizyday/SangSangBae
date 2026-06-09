@@ -1126,8 +1126,9 @@ def _two_leg_matches(
 def _knockout_matches(league: str, year: int) -> list[Match]:
     rows = []
     for region in ["west", "east"]:
-        rows.extend(_two_leg_matches(league, "qf", "QF", [19, 20], region, _regional_slots("QF", region, 4)))
-        rows.extend(_two_leg_matches(league, "sf", "SF", [24, 25], region, _regional_slots("SF", region, 2)))
+        rows.extend(_two_leg_matches(league, "r16", "R16", [19, 20], region, _regional_slots("R16", region, 8)))
+        rows.extend(_two_leg_matches(league, "qf", "QF", [23, 24], region, _regional_slots("QF", region, 4)))
+        rows.extend(_two_leg_matches(league, "sf", "SF", [27, 28], region, _regional_slots("SF", region, 2)))
 
     west_home = year % 2 == 1
     home = "west_SF_1" if west_home else "east_SF_1"
