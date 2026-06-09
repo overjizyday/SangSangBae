@@ -137,14 +137,14 @@ def _build_knockout_standings(matches: list[Match], competition: str) -> list[di
         if stage == "final":
             eliminations[winner] = {
                 "eliminated_stage": "우승",
-                "stage_rank": 5,
+                "stage_rank": 500,
                 "elim_gf": team_scores[winner]["gf"],
                 "elim_ga": team_scores[winner]["ga"],
                 "elim_gd": team_scores[winner]["gf"] - team_scores[winner]["ga"],
             }
             eliminations[loser] = {
                 "eliminated_stage": "결승 탈락",
-                "stage_rank": 4,
+                "stage_rank": 400,
                 "elim_gf": team_scores[loser]["gf"],
                 "elim_ga": team_scores[loser]["ga"],
                 "elim_gd": team_scores[loser]["gf"] - team_scores[loser]["ga"],
@@ -170,7 +170,7 @@ def _build_knockout_standings(matches: list[Match], competition: str) -> list[di
             "preliminary": 100 + prelim_round_no,
             "r16": 200,
             "qf": 300,
-            "sf": 400,
+            "sf": 350,
         }.get(stage, 0)
         eliminations[loser] = {
             "eliminated_stage": stage_label,

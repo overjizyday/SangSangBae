@@ -196,6 +196,55 @@ class StageCompetitionsTests(unittest.TestCase):
 
         self.assertLess(ranks["T04"], ranks["T02"])
 
+    def test_knockout_standings_place_final_loser_ahead_of_semifinal_losers(self):
+        matches = [
+            Match(
+                id="CH-SF-25-001",
+                competition="championship",
+                stage="sf",
+                round="SF",
+                week=25,
+                home_team_id="T01",
+                away_team_id="T02",
+                home_score=4,
+                away_score=1,
+                winner_team_id="T01",
+                loser_team_id="T02",
+            ),
+            Match(
+                id="CH-SF-25-002",
+                competition="championship",
+                stage="sf",
+                round="SF",
+                week=25,
+                home_team_id="T03",
+                away_team_id="T04",
+                home_score=3,
+                away_score=0,
+                winner_team_id="T03",
+                loser_team_id="T04",
+            ),
+            Match(
+                id="CH-FINAL-29-001",
+                competition="championship",
+                stage="final",
+                round="Final",
+                week=29,
+                home_team_id="T01",
+                away_team_id="T03",
+                home_score=2,
+                away_score=5,
+                winner_team_id="T03",
+                loser_team_id="T01",
+            ),
+        ]
+
+        rows = _build_knockout_standings(matches, "championship")
+        ranks = {row["team_id"]: row["rank"] for row in rows}
+
+        self.assertLess(ranks["T01"], ranks["T02"])
+        self.assertLess(ranks["T01"], ranks["T04"])
+
 
 if __name__ == "__main__":
     unittest.main()
