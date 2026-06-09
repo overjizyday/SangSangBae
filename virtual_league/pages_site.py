@@ -92,6 +92,14 @@ def _strip_standings_tables(page: Path) -> None:
     page.write_text(html, encoding="utf-8")
 
 
+def _strip_standings_script(page: Path) -> None:
+    if not page.exists():
+        return
+    html = page.read_text(encoding="utf-8")
+    html = re.sub(r'\s*<script src="\./spoiler_guard\.js\?v=[^"]+" defer></script>', "", html)
+    page.write_text(html, encoding="utf-8")
+
+
 def _build_index_html(season_year: int) -> str:
     return f"""<!doctype html>
 <html lang="ko">
@@ -499,9 +507,8 @@ def write_pages_site(seasons_root: Path, output_dir: Path, season_dir: Path | No
     source_spoiler_guard = Path(__file__).resolve().parent / "spoiler_guard.js"
     _copy_if_exists(source_spoiler_guard, output_dir / "spoiler_guard.js")
     _ensure_spoiler_guard(output_dir / "calendar.html")
-    _ensure_spoiler_guard(output_dir / "standings.html")
     _strip_calendar_scores(output_dir / "calendar.html")
-    _strip_standings_tables(output_dir / "standings.html")
+    _strip_standings_script(output_dir / "standings.html")
 
     season_json_path = season_dir / "season.json"
     season_year = int(season_dir.name) if season_dir.name.isdigit() else 0
