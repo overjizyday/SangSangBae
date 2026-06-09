@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .live_view import replay_season
@@ -44,8 +45,18 @@ def build_parser() -> argparse.ArgumentParser:
     pages.add_argument("--seasons-dir", default="seasons", help="Root directory containing season folders")
     pages.add_argument("--output", default="docs", help="Output directory for the static site")
     pages.add_argument("--season-dir", default=None, help="Optional season directory to publish instead of latest")
+    pages.add_argument("--replay-tick", type=int, default=None, help="Force the published replay to start from this tick")
+    pages.add_argument("--replay-complete", action="store_true", help="Force the published replay to appear complete")
 
     return parser
+
+
+def _replay_started_at_for_tick(tick: int, tick_seconds: int, *, now: datetime | None = None) -> str:
+    current = now or datetime.now(UTC)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=UTC)
+    tick = max(0, int(tick))
+    return (current - timedelta(seconds=tick * int(tick_seconds))).isoformat()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,7 +108,17 @@ def main(argv: list[str] | None = None) -> int:
         seasons_root = Path(args.seasons_dir)
         season_dir = Path(args.season_dir) if args.season_dir else None
         output_dir = Path(args.output)
-        pages_dir = write_pages_site(seasons_root, output_dir, season_dir=season_dir)
+        replay_started_at = None
+        if args.replay_complete:
+            replay_started_at = _replay_started_at_for_tick(10_000_000, 2)
+        elif args.replay_tick is not None:
+            replay_started_at = _replay_started_at_for_tick(args.replay_tick, 2)
+        pages_dir = write_pages_site(
+            seasons_root,
+            output_dir,
+            season_dir=season_dir,
+            replay_started_at=replay_started_at,
+        )
         print(f"Static Pages site written: {pages_dir}")
         return 0
 

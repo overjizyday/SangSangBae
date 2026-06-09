@@ -41,7 +41,7 @@ def _copy_if_exists(source: Path, destination: Path) -> None:
         shutil.copy2(source, destination)
 
 
-def _stamp_replay_start(season_path: Path) -> str | None:
+def _stamp_replay_start(season_path: Path, replay_started_at: str | None = None) -> str | None:
     if not season_path.exists():
         return None
     try:
@@ -50,7 +50,8 @@ def _stamp_replay_start(season_path: Path) -> str | None:
         return None
     if not isinstance(payload, dict):
         return None
-    replay_started_at = datetime.now(UTC).isoformat()
+    if replay_started_at is None:
+        replay_started_at = datetime.now(UTC).isoformat()
     payload["replay_started_at"] = replay_started_at
     season_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return replay_started_at
@@ -479,7 +480,13 @@ def _build_index_html(season_year: int) -> str:
 """
 
 
-def write_pages_site(seasons_root: Path, output_dir: Path, season_dir: Path | None = None) -> Path:
+def write_pages_site(
+    seasons_root: Path,
+    output_dir: Path,
+    season_dir: Path | None = None,
+    *,
+    replay_started_at: str | None = None,
+) -> Path:
     seasons_root = Path(seasons_root)
     output_dir = Path(output_dir)
     season_dir = Path(season_dir) if season_dir is not None else _latest_season_dir(seasons_root)
@@ -491,7 +498,7 @@ def write_pages_site(seasons_root: Path, output_dir: Path, season_dir: Path | No
 
     for filename in DATA_FILES:
         _copy_if_exists(season_dir / filename, output_dir / filename)
-    replay_started_at = _stamp_replay_start(output_dir / "season.json")
+    replay_started_at = _stamp_replay_start(output_dir / "season.json", replay_started_at=replay_started_at)
     write_replay_bundle(output_dir, output_dir, replay_started_at=replay_started_at)
 
     source_app = Path(__file__).resolve().parent / "pages_app.js"
