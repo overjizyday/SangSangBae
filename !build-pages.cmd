@@ -31,7 +31,7 @@ if "%ERRORLEVEL%"=="0" (
 if not "%ERRORLEVEL%"=="0" goto :done
 
 echo [5/5] Pushing to GitHub...
-git push
+git push origin HEAD:main
 set "EXIT_CODE=%ERRORLEVEL%"
 
 :done
