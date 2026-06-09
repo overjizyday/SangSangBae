@@ -6,7 +6,11 @@ from pathlib import Path
 from virtual_league.championship import generate_championship
 from virtual_league.fa_cup import generate_fa_cup
 from virtual_league.models import Team
-from virtual_league.season import create_season
+from virtual_league.season import (
+    create_season,
+    load_previous_championship_standings,
+    load_previous_local_cup_winner_id,
+)
 from virtual_league.super_cup import generate_super_cup
 
 
@@ -33,6 +37,11 @@ def standings(count: int) -> list[dict[str, object]]:
         }
         for idx in range(1, count + 1)
     ]
+
+
+def write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 class StageCompetitionsTests(unittest.TestCase):
@@ -99,6 +108,57 @@ class StageCompetitionsTests(unittest.TestCase):
             self.assertIn("super_cup", season["competitions"])
             for filename in ["championship.json", "fa_cup.json", "super_cup.json"]:
                 self.assertTrue((season_dir / filename).exists(), filename)
+
+    def test_previous_local_cup_winner_prefers_previous_cup_over_league(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(
+                root / "1970" / "local_cup.json",
+                {
+                    "held": True,
+                    "standings": [
+                        {"team_id": "T05", "team_name": "?05", "rank": 1},
+                        {"team_id": "T06", "team_name": "?06", "rank": 2},
+                    ],
+                },
+            )
+            write_json(root / "1970" / "standings.json", standings(8))
+
+            self.assertEqual(load_previous_local_cup_winner_id(root, 1971), "T05")
+
+    def test_previous_local_cup_winner_falls_back_to_league_when_no_previous_cup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / "1970" / "standings.json", standings(8))
+
+            self.assertEqual(load_previous_local_cup_winner_id(root, 1971), "T01")
+
+    def test_previous_championship_standings_prefers_previous_championship(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(
+                root / "1970" / "championship.json",
+                {
+                    "held": True,
+                    "standings": [
+                        {"team_id": "T07", "team_name": "?07", "rank": 1},
+                        {"team_id": "T03", "team_name": "?03", "rank": 2},
+                        {"team_id": "T01", "team_name": "?01", "rank": 3},
+                    ],
+                },
+            )
+            write_json(root / "1970" / "standings.json", standings(8))
+
+            previous = load_previous_championship_standings(root, 1971)
+            self.assertEqual([row["team_id"] for row in previous[:3]], ["T07", "T03", "T01"])
+
+    def test_previous_championship_standings_falls_back_to_league_when_no_previous_championship(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / "1970" / "standings.json", standings(8))
+
+            previous = load_previous_championship_standings(root, 1971)
+            self.assertEqual([row["team_id"] for row in previous[:3]], ["T01", "T02", "T03"])
 
 
 if __name__ == "__main__":

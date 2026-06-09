@@ -1,0 +1,15 @@
+{
+  "year": 1973,
+  "competitions": [
+    "league",
+    "local_cup",
+    "championship",
+    "super_cup",
+    "acl"
+  ],
+  "todos": [
+    "TODO: implement promotion_relegation_playoffs",
+    "TODO: implement final_round"
+  ],
+  "replay_started_at": "2026-06-09T10:27:26.969412+00:00"
+}

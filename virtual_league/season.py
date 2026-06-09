@@ -103,6 +103,44 @@ def load_previous_standings(seasons_dir: Path, year: int) -> list[dict[str, obje
     return _latest_completed_season_standings(seasons_dir, year)
 
 
+def _load_previous_competition_payload(seasons_dir: Path, year: int, competition: str) -> dict[str, object] | None:
+    path = seasons_dir / str(year - 1) / f"{competition}.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict) or not data.get("held"):
+        return None
+    return data
+
+
+def load_previous_local_cup_winner_id(seasons_dir: Path, year: int) -> str | None:
+    previous_cup = _load_previous_competition_payload(seasons_dir, year, "local_cup")
+    standings = previous_cup.get("standings") if previous_cup else None
+    if isinstance(standings, list) and standings:
+        first = standings[0]
+        if isinstance(first, dict):
+            winner_id = str(first.get("team_id") or "")
+            if winner_id:
+                return winner_id
+
+    previous_standings = load_previous_standings(seasons_dir, year)
+    if previous_standings:
+        return str(previous_standings[0]["team_id"])
+    return None
+
+
+def load_previous_championship_standings(seasons_dir: Path, year: int) -> list[dict[str, object]]:
+    previous_championship = _load_previous_competition_payload(seasons_dir, year, "championship")
+    standings = previous_championship.get("standings") if previous_championship else None
+    if isinstance(standings, list) and standings:
+        return [row for row in standings if isinstance(row, dict)]
+
+    return load_previous_standings(seasons_dir, year)
+
+
 def load_previous_cup_results(seasons_dir: Path, year: int) -> dict[str, dict[str, str | None]]:
     results: dict[str, dict[str, str | None]] = {}
     for prior_year in range(year - 1, 1969, -1):
@@ -333,7 +371,7 @@ def create_season(
     if year > 1970:
         previous_standings = load_previous_standings(root, year)
         previous_cup_results = load_previous_cup_results(root, year)
-        previous_winner_id = find_previous_league_winner_id(root, year)
+        previous_winner_id = load_previous_local_cup_winner_id(root, year)
         if previous_winner_id is None:
             previous_winner_id = standings[0].team_id
 
@@ -342,7 +380,8 @@ def create_season(
             metadata.competitions.append("local_cup")
         competition_payloads.append(local_cup)
 
-        championship = generate_championship(season_teams, previous_standings, root, year)
+        championship_standings = load_previous_championship_standings(root, year)
+        championship = generate_championship(season_teams, championship_standings, root, year)
         if championship["held"]:
             metadata.competitions.append("championship")
         competition_payloads.append(championship)
