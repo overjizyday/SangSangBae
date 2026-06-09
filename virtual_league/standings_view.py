@@ -48,19 +48,26 @@ def _display_name(team_id: str, team_name: str, country: str = "") -> str:
 
 
 def _cup_stage_order(stage: str) -> int:
-    return {
+    lower = stage.strip().lower() if isinstance(stage, str) else stage
+    fixed = {
         "우승": 0,
         "결승 탈락": 1,
         "4강 탈락": 2,
         "8강 탈락": 3,
         "16강 탈락": 4,
         "r16 탈락": 4,
-        "r1 탈락": 5,
-        "r2 탈락": 4,
         "지역예선 탈락": 6,
         "조별 탈락": 7,
         "미확정": 99,
-    }.get(stage.strip().lower() if isinstance(stage, str) else stage, 50)
+    }
+    if lower in fixed:
+        return fixed[lower]
+    match = re.fullmatch(r"r(\d+)\s*탈락", lower or "")
+    if match:
+        # Higher preliminary round numbers are closer to the knockout stage,
+        # so they should sort ahead of earlier exits.
+        return 1000 - int(match.group(1))
+    return 50
 
 
 def _cup_display_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:

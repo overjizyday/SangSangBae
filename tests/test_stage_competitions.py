@@ -5,13 +5,14 @@ from pathlib import Path
 
 from virtual_league.championship import generate_championship
 from virtual_league.fa_cup import generate_fa_cup
-from virtual_league.models import Team
+from virtual_league.models import Match, Team
 from virtual_league.season import (
     create_season,
     load_previous_championship_standings,
     load_previous_local_cup_winner_id,
 )
 from virtual_league.super_cup import generate_super_cup
+from virtual_league.tournament_resolution import _build_knockout_standings
 
 
 def make_teams(count: int, amateur_from: int | None = None) -> list[Team]:
@@ -159,6 +160,41 @@ class StageCompetitionsTests(unittest.TestCase):
 
             previous = load_previous_championship_standings(root, 1971)
             self.assertEqual([row["team_id"] for row in previous[:3]], ["T01", "T02", "T03"])
+
+    def test_knockout_standings_order_preliminary_rounds_by_late_exit(self):
+        matches = [
+            Match(
+                id="CH-PRELIMINARY-11-001",
+                competition="championship",
+                stage="preliminary",
+                round="R1",
+                week=11,
+                home_team_id="T01",
+                away_team_id="T02",
+                home_score=1,
+                away_score=0,
+                winner_team_id="T01",
+                loser_team_id="T02",
+            ),
+            Match(
+                id="CH-PRELIMINARY-12-001",
+                competition="championship",
+                stage="preliminary",
+                round="R2",
+                week=12,
+                home_team_id="T03",
+                away_team_id="T04",
+                home_score=1,
+                away_score=0,
+                winner_team_id="T03",
+                loser_team_id="T04",
+            ),
+        ]
+
+        rows = _build_knockout_standings(matches, "championship")
+        ranks = {row["team_id"]: row["rank"] for row in rows}
+
+        self.assertLess(ranks["T04"], ranks["T02"])
 
 
 if __name__ == "__main__":

@@ -78,7 +78,7 @@
       "advantage_team_id": null,
       "day": "토",
       "home_score": 7,
-      "away_score": 1,
+      "away_score": 6,
       "winner_team_id": "T04",
       "loser_team_id": "T14"
     },
@@ -97,9 +97,9 @@
       "advantage_team_id": null,
       "day": "토",
       "home_score": 4,
-      "away_score": 0,
-      "winner_team_id": "T12",
-      "loser_team_id": "T07"
+      "away_score": 4,
+      "winner_team_id": null,
+      "loser_team_id": null
     },
     {
       "id": "SC-R1-003",
@@ -115,10 +115,10 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "토",
-      "home_score": 6,
-      "away_score": 5,
-      "winner_team_id": "T03",
-      "loser_team_id": "T08"
+      "home_score": 4,
+      "away_score": 8,
+      "winner_team_id": "T08",
+      "loser_team_id": "T03"
     },
     {
       "id": "SC-R2-004",
@@ -135,9 +135,9 @@
       "advantage_team_id": null,
       "day": "일",
       "home_score": 2,
-      "away_score": 4,
-      "winner_team_id": "T04",
-      "loser_team_id": "T07"
+      "away_score": 1,
+      "winner_team_id": "T07",
+      "loser_team_id": "T04"
     },
     {
       "id": "SC-R2-005",
@@ -153,8 +153,8 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "일",
-      "home_score": 1,
-      "away_score": 8,
+      "home_score": 7,
+      "away_score": 12,
       "winner_team_id": "T12",
       "loser_team_id": "T08"
     },
@@ -172,10 +172,10 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "일",
-      "home_score": 4,
-      "away_score": 8,
-      "winner_team_id": "T14",
-      "loser_team_id": "T03"
+      "home_score": 5,
+      "away_score": 2,
+      "winner_team_id": "T03",
+      "loser_team_id": "T14"
     },
     {
       "id": "SC-R3-007",
@@ -191,10 +191,10 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "목",
-      "home_score": 0,
+      "home_score": 5,
       "away_score": 2,
-      "winner_team_id": "T04",
-      "loser_team_id": "T08"
+      "winner_team_id": "T08",
+      "loser_team_id": "T04"
     },
     {
       "id": "SC-R3-008",
@@ -210,8 +210,8 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "목",
-      "home_score": 1,
-      "away_score": 3,
+      "home_score": 2,
+      "away_score": 7,
       "winner_team_id": "T03",
       "loser_team_id": "T12"
     },
@@ -229,8 +229,8 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "목",
-      "home_score": 12,
-      "away_score": 10,
+      "home_score": 4,
+      "away_score": 3,
       "winner_team_id": "T14",
       "loser_team_id": "T07"
     },
@@ -249,9 +249,9 @@
       "advantage_team_id": null,
       "day": "토",
       "home_score": 6,
-      "away_score": 9,
-      "winner_team_id": "T03",
-      "loser_team_id": "T04"
+      "away_score": 3,
+      "winner_team_id": "T04",
+      "loser_team_id": "T03"
     },
     {
       "id": "SC-R4-011",
@@ -267,10 +267,10 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "토",
-      "home_score": 10,
-      "away_score": 11,
-      "winner_team_id": "T14",
-      "loser_team_id": "T12"
+      "home_score": 12,
+      "away_score": 7,
+      "winner_team_id": "T12",
+      "loser_team_id": "T14"
     },
     {
       "id": "SC-R4-012",
@@ -286,8 +286,8 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "토",
-      "home_score": 3,
-      "away_score": 8,
+      "home_score": 2,
+      "away_score": 14,
       "winner_team_id": "T08",
       "loser_team_id": "T07"
     },
@@ -305,10 +305,10 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "일",
-      "home_score": 4,
-      "away_score": 6,
-      "winner_team_id": "T12",
-      "loser_team_id": "T04"
+      "home_score": 6,
+      "away_score": 0,
+      "winner_team_id": "T04",
+      "loser_team_id": "T12"
     },
     {
       "id": "SC-R5-014",
@@ -325,7 +325,7 @@
       "advantage_team_id": null,
       "day": "일",
       "home_score": 0,
-      "away_score": 6,
+      "away_score": 2,
       "winner_team_id": "T07",
       "loser_team_id": "T03"
     },
@@ -343,8 +343,8 @@
       "leg": null,
       "advantage_team_id": null,
       "day": "일",
-      "home_score": 1,
-      "away_score": 3,
+      "home_score": 3,
+      "away_score": 5,
       "winner_team_id": "T08",
       "loser_team_id": "T14"
     }
@@ -357,70 +357,70 @@
       "wins": 3,
       "draws": 0,
       "losses": 2,
-      "gf": 23,
-      "ga": 18,
-      "gd": 5,
-      "points": 19
-    },
-    {
-      "team_id": "T12",
-      "team_name": "세종",
-      "played": 5,
-      "wins": 3,
-      "draws": 0,
-      "losses": 2,
-      "gf": 29,
-      "ga": 19,
-      "gd": 10,
-      "points": 16
-    },
-    {
-      "team_id": "T03",
-      "team_name": "부산",
-      "played": 5,
-      "wins": 3,
-      "draws": 0,
-      "losses": 2,
       "gf": 22,
-      "ga": 26,
-      "gd": -4,
-      "points": 16
-    },
-    {
-      "team_id": "T14",
-      "team_name": "제주",
-      "played": 5,
-      "wins": 3,
-      "draws": 0,
-      "losses": 2,
-      "gf": 33,
-      "ga": 34,
-      "gd": -1,
-      "points": 14
+      "ga": 16,
+      "gd": 6,
+      "points": 19
     },
     {
       "team_id": "T08",
       "team_name": "원주",
       "played": 5,
+      "wins": 4,
+      "draws": 0,
+      "losses": 1,
+      "gf": 39,
+      "ga": 23,
+      "gd": 16,
+      "points": 15
+    },
+    {
+      "team_id": "T12",
+      "team_name": "세종",
+      "played": 5,
+      "wins": 2,
+      "draws": 1,
+      "losses": 2,
+      "gf": 30,
+      "ga": 31,
+      "gd": -1,
+      "points": 14
+    },
+    {
+      "team_id": "T03",
+      "team_name": "부산",
+      "played": 5,
       "wins": 2,
       "draws": 0,
       "losses": 3,
-      "gf": 17,
+      "gf": 19,
       "ga": 20,
-      "gd": -3,
-      "points": 9
+      "gd": -1,
+      "points": 13
     },
     {
       "team_id": "T07",
       "team_name": "창원",
       "played": 5,
+      "wins": 2,
+      "draws": 1,
+      "losses": 2,
+      "gf": 13,
+      "ga": 23,
+      "gd": -10,
+      "points": 10
+    },
+    {
+      "team_id": "T14",
+      "team_name": "제주",
+      "played": 5,
       "wins": 1,
       "draws": 0,
       "losses": 4,
-      "gf": 21,
-      "ga": 28,
-      "gd": -7,
-      "points": 6
+      "gf": 22,
+      "ga": 32,
+      "gd": -10,
+      "points": 8
     }
   ],
   "champions": {

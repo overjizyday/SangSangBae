@@ -151,13 +151,27 @@ def _build_knockout_standings(matches: list[Match], competition: str) -> list[di
             }
             continue
 
+        prelim_round_no = 0
+        if stage == "preliminary" and isinstance(round_label, str) and round_label.upper().startswith("R"):
+            try:
+                prelim_round_no = int(round_label[1:])
+            except ValueError:
+                prelim_round_no = 0
+
         stage_label = {
             "preliminary": f"{round_label} 탈락",
             "qf": "8강 탈락",
             "sf": "4강 탈락",
             "r16": "16강 탈락",
         }.get(stage, f"{round_label} 탈락")
-        stage_rank = {"preliminary": 1, "r16": 2, "qf": 3, "sf": 4}.get(stage, 0)
+        # Preliminary rounds must be ordered by how late the team reached:
+        # R1 < R2 < R3 ... < R16 < QF < SF < Final.
+        stage_rank = {
+            "preliminary": 100 + prelim_round_no,
+            "r16": 200,
+            "qf": 300,
+            "sf": 400,
+        }.get(stage, 0)
         eliminations[loser] = {
             "eliminated_stage": stage_label,
             "stage_rank": stage_rank,
@@ -178,6 +192,7 @@ def _build_knockout_standings(matches: list[Match], competition: str) -> list[di
                 "elim_gd": 0,
             },
         )
+        placement_points = int(elimination["stage_rank"])
         rows.append(
             {
                 "team_id": team_id,
@@ -189,7 +204,7 @@ def _build_knockout_standings(matches: list[Match], competition: str) -> list[di
                 "gf": values["gf"],
                 "ga": values["ga"],
                 "gd": values["gd"],
-                "points": elimination["stage_rank"],
+                "points": placement_points,
                 "eliminated_stage": elimination["eliminated_stage"],
                 "elim_gf": elimination["elim_gf"],
                 "elim_ga": elimination["elim_ga"],
