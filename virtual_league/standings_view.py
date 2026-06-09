@@ -80,12 +80,34 @@ def _cup_display_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     return ordered
 
 
+_DAY_ORDER = {
+    "\uc6d4": 0,
+    "\ud654": 1,
+    "\uc218": 2,
+    "\ubaa9": 3,
+    "\uae08": 4,
+    "\ud1a0": 5,
+    "\uc77c": 6,
+}
+
+
+def _match_execution_key(match: Match) -> tuple[int, int, int, int, str]:
+    return (
+        int(match.week or 0),
+        _DAY_ORDER.get(str(match.day or ""), 99),
+        int(match.match_no or 0),
+        int(match.leg or 0),
+        str(match.id or ""),
+    )
+
+
 def _is_knockout_stage(stage: str) -> bool:
     lower = stage.lower()
     return any(
         token in lower
         for token in [
             "preliminary",
+            "po",
             "regional_po",
             "r16",
             "qf",
@@ -96,7 +118,7 @@ def _is_knockout_stage(stage: str) -> bool:
             "_sf",
             "_final",
         ]
-    )
+    ) or bool(re.fullmatch(r"r\d+", lower))
 
 
 def _competition_stage_key(name: str, stage: str) -> str:
@@ -112,6 +134,8 @@ def _knockout_stage_order(stage: str) -> int:
         return 0
     if lower.endswith("_po") or lower in {"po", "regional_po"}:
         return 1
+    if re.fullmatch(r"r\d+", lower):
+        return 2
     if "r16" in lower:
         return 2
     if "qf" in lower:
@@ -185,7 +209,7 @@ def _build_knockout_rows(
         grouped.items(),
         key=lambda item: (
             _knockout_stage_order(item[0][0]),
-            int(min((match.week for match in item[1]), default=0)),
+            min((_match_execution_key(match) for match in item[1]), default=(9999, 99, 9999, 9999, "")),
             item[0][2],
             item[0][3],
         ),
