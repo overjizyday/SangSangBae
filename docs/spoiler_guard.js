@@ -274,9 +274,9 @@ function compareExecutionKeys(a, b) {
 function knockoutScheduleRows(matches, completed, prerequisiteMatches = []) {
   const stageOrder = {
     preliminary: 0, po: 1, regional_po: 1, r16: 2, qf: 3, sf: 4, final: 5,
-    ACL1_po: 0, ACL1_qf: 1, ACL1_sf: 2, ACL1_final: 3,
-    ACL2_po: 0, ACL2_qf: 1, ACL2_sf: 2, ACL2_final: 3,
-    ACL3_po: 0, ACL3_qf: 1, ACL3_sf: 2, ACL3_final: 3,
+    ACL1_po: 0, ACL1_r16: 1, ACL1_qf: 2, ACL1_sf: 3, ACL1_final: 4,
+    ACL2_po: 0, ACL2_r16: 1, ACL2_qf: 2, ACL2_sf: 3, ACL2_final: 4,
+    ACL3_po: 0, ACL3_r16: 1, ACL3_qf: 2, ACL3_sf: 3, ACL3_final: 4,
   };
   return groupBracketMatches(visibleBracketMatches(matches, completed, stageOrder, prerequisiteMatches));
 }
@@ -378,10 +378,10 @@ function replaceViewContent(panel, viewId, html) {
 
 function renderBracket(matches, completed, teamNames, prerequisiteMatches = []) {
   const stageOrder = {
-    preliminary: 0, po: 1, regional_po: 1, qf: 2, sf: 3, final: 4,
-    ACL1_po: 0, ACL1_qf: 1, ACL1_sf: 2, ACL1_final: 3,
-    ACL2_po: 0, ACL2_qf: 1, ACL2_sf: 2, ACL2_final: 3,
-    ACL3_po: 0, ACL3_qf: 1, ACL3_sf: 2, ACL3_final: 3,
+    preliminary: 0, po: 1, regional_po: 1, r16: 2, qf: 3, sf: 4, final: 5,
+    ACL1_po: 0, ACL1_r16: 1, ACL1_qf: 2, ACL1_sf: 3, ACL1_final: 4,
+    ACL2_po: 0, ACL2_r16: 1, ACL2_qf: 2, ACL2_sf: 3, ACL2_final: 4,
+    ACL3_po: 0, ACL3_r16: 1, ACL3_qf: 2, ACL3_sf: 3, ACL3_final: 4,
   };
   const stageLabels = {
     preliminary: "예선",
@@ -427,6 +427,7 @@ function renderBracket(matches, completed, teamNames, prerequisiteMatches = []) 
 function bracketStageLabel(stage) {
   const value = String(stage || "");
   if (value.endsWith("_po")) return "PO";
+  if (value.endsWith("_r16")) return "16강";
   if (value.endsWith("_qf")) return "8강";
   if (value.endsWith("_sf")) return "4강";
   if (value.endsWith("_final")) return "결승";

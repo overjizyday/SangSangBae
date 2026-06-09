@@ -747,7 +747,7 @@ def _super_cup_acl_candidates(super_cup: dict[str, object] | None, teams: Sequen
     standings = super_cup.get("standings")
     source_rows = standings if isinstance(standings, list) and standings else super_cup.get("entrants", [])
     rows = []
-    for source in source_rows:
+    for source_rank, source in enumerate(source_rows, start=1):
         if not isinstance(source, dict):
             continue
         team_id = str(source["team_id"])
@@ -762,13 +762,21 @@ def _super_cup_acl_candidates(super_cup: dict[str, object] | None, teams: Sequen
                 "slot": "B",
                 "country": "대한민국",
                 "region": "east",
+                "source_rank": source_rank,
                 "league_rank": entrant.get("league_rank"),
                 "super_cup_points": base_points,
                 "super_cup_table_points": table_points,
                 "acl_score": final_points,
             }
         )
-    rows.sort(key=lambda row: (-int(row["acl_score"]), -int(row["super_cup_table_points"]), str(row["team_name"])))
+    rows.sort(
+        key=lambda row: (
+            -int(row["acl_score"]),
+            -int(row["super_cup_table_points"]),
+            int(row.get("source_rank", 0)),
+            str(row["team_name"]),
+        )
+    )
     return rows
 
 

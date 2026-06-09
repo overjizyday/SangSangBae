@@ -271,9 +271,10 @@ def _stage_order(stage: str) -> int:
         return {
             "po": 0,
             "group": 1,
-            "qf": 2,
-            "sf": 3,
-            "final": 4,
+            "r16": 2,
+            "qf": 3,
+            "sf": 4,
+            "final": 5,
         }.get(phase, 0)
     order = {
         "regular": 0,
