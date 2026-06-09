@@ -344,6 +344,7 @@ def generate_main_round_placeholders(qualifier_total: int, previous_winner_id: s
                 match_no=idx + 1,
                 home_team_id=f"PENDING_QF_{idx+1}_A",
                 away_team_id=f"PENDING_QF_{idx+1}_B",
+                leg=(idx % 2) + 1,
             )
         )
 
@@ -358,6 +359,7 @@ def generate_main_round_placeholders(qualifier_total: int, previous_winner_id: s
                 match_no=idx + 1,
                 home_team_id=f"PENDING_SF_{idx+1}_A",
                 away_team_id=f"PENDING_SF_{idx+1}_B",
+                leg=(idx % 2) + 1,
             )
         )
 
