@@ -242,9 +242,38 @@ function teamLabel(teamId, teamNames) {
   return teamNames.get(String(teamId || "")) || String(teamId || "");
 }
 
+function knockoutStageOrder(stage) {
+  const lower = String(stage || "").toLowerCase();
+  if (lower.includes("preliminary")) return 0;
+  if (lower === "po" || lower === "regional_po" || lower.endsWith("_po")) return 1;
+  if (/^r\d+$/.test(lower)) return 2;
+  if (lower.includes("r16")) return 3;
+  if (lower.includes("qf")) return 4;
+  if (lower.includes("sf")) return 5;
+  if (lower.includes("final")) return 6;
+  return 9;
+}
+
+function matchExecutionKey(match) {
+  return [
+    Number(match.week || 0),
+    WEEKDAY_ORDER_SYNC[String(match.day || "")] ?? 99,
+    Number(match.match_no || 0),
+    Number(match.leg || 0),
+    String(match.id || match.match_id || ""),
+  ];
+}
+
+function compareExecutionKeys(a, b) {
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
+  }
+  return 0;
+}
+
 function knockoutScheduleRows(matches, completed, prerequisiteMatches = []) {
   const stageOrder = {
-    preliminary: 0, regional_po: 1, r16: 2, qf: 3, sf: 4, final: 5,
+    preliminary: 0, po: 1, regional_po: 1, r16: 2, qf: 3, sf: 4, final: 5,
     ACL1_po: 0, ACL1_qf: 1, ACL1_sf: 2, ACL1_final: 3,
     ACL2_po: 0, ACL2_qf: 1, ACL2_sf: 2, ACL2_final: 3,
     ACL3_po: 0, ACL3_qf: 1, ACL3_sf: 2, ACL3_final: 3,
@@ -271,7 +300,15 @@ function renderKnockoutScheduleTable(matchGroups, completed, teamNames) {
   if (!matchGroups.length) {
     return `<p class="pending">확정된 토너먼트 일정이 없습니다.</p>`;
   }
-  const rows = matchGroups.map((matchGroup) => {
+  const orderedGroups = [...matchGroups].sort((a, b) => {
+    const aFirst = a[0];
+    const bFirst = b[0];
+    return knockoutStageOrder(aFirst?.stage) - knockoutStageOrder(bFirst?.stage)
+      || compareExecutionKeys(matchExecutionKey(aFirst), matchExecutionKey(bFirst))
+      || Number(aFirst?.match_no || 0) - Number(bFirst?.match_no || 0)
+      || String(aFirst?.round || "").localeCompare(String(bFirst?.round || ""), "ko");
+  });
+  const rows = orderedGroups.map((matchGroup) => {
     const first = matchGroup[0];
     const byLeg = new Map(matchGroup.map((match) => [Number(match.leg || 1), match]));
     const leg1 = byLeg.get(1) || first;
@@ -341,7 +378,7 @@ function replaceViewContent(panel, viewId, html) {
 
 function renderBracket(matches, completed, teamNames, prerequisiteMatches = []) {
   const stageOrder = {
-    preliminary: 0, regional_po: 1, qf: 2, sf: 3, final: 4,
+    preliminary: 0, po: 1, regional_po: 1, qf: 2, sf: 3, final: 4,
     ACL1_po: 0, ACL1_qf: 1, ACL1_sf: 2, ACL1_final: 3,
     ACL2_po: 0, ACL2_qf: 1, ACL2_sf: 2, ACL2_final: 3,
     ACL3_po: 0, ACL3_qf: 1, ACL3_sf: 2, ACL3_final: 3,
@@ -361,8 +398,8 @@ function renderBracket(matches, completed, teamNames, prerequisiteMatches = []) 
     stages.get(stage).push(match);
   }
   const rounds = Array.from(stages.entries()).sort((a, b) => {
-    const ao = stageOrder[a[0]] ?? 50;
-    const bo = stageOrder[b[0]] ?? 50;
+    const ao = stageOrder[a[0]] ?? knockoutStageOrder(a[0]);
+    const bo = stageOrder[b[0]] ?? knockoutStageOrder(b[0]);
     return ao - bo || a[0].localeCompare(b[0]);
   });
   if (!rounds.length) return `<p class="pending">표시할 토너먼트 경기가 없습니다.</p>`;
@@ -407,17 +444,20 @@ function groupBracketMatches(matches) {
   }
   return Array.from(groups.values())
     .map((items) => items.sort((a, b) => Number(a.leg || 1) - Number(b.leg || 1) || Number(a.week || 0) - Number(b.week || 0)))
-    .sort((a, b) => Number(a[0].match_no || 0) - Number(b[0].match_no || 0) || Number(a[0].week || 0) - Number(b[0].week || 0));
+    .sort((a, b) => knockoutStageOrder(a[0]?.stage) - knockoutStageOrder(b[0]?.stage)
+      || compareExecutionKeys(matchExecutionKey(a[0]), matchExecutionKey(b[0]))
+      || Number(a[0].match_no || 0) - Number(b[0].match_no || 0)
+      || String(a[0].round || "").localeCompare(String(b[0].round || ""), "ko"));
 }
 
 function visibleBracketMatches(matches, completed, stageOrder, prerequisiteMatches = []) {
   const stages = Array.from(new Set(matches.map((match) => String(match.stage || "stage"))))
-    .sort((a, b) => (stageOrder[a] ?? 50) - (stageOrder[b] ?? 50) || a.localeCompare(b));
+    .sort((a, b) => (stageOrder[a] ?? knockoutStageOrder(a)) - (stageOrder[b] ?? knockoutStageOrder(b)) || a.localeCompare(b));
   const visibleStages = new Set();
 
   for (const stage of stages) {
-    const order = stageOrder[stage] ?? 50;
-    const priorStages = stages.filter((item) => (stageOrder[item] ?? 50) < order);
+    const order = stageOrder[stage] ?? knockoutStageOrder(stage);
+    const priorStages = stages.filter((item) => (stageOrder[item] ?? knockoutStageOrder(item)) < order);
     const prerequisitesDone = prerequisiteMatches.every((match) => matchCompleted(match, completed));
     const priorDone = priorStages.every((priorStage) => matches
       .filter((match) => String(match.stage || "stage") === priorStage)
