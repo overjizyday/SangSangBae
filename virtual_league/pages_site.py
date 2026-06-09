@@ -60,7 +60,7 @@ def _ensure_spoiler_guard(page: Path) -> None:
     if not page.exists():
         return
     html = page.read_text(encoding="utf-8")
-    script = '<script src="./spoiler_guard.js?v=cup-views-3" defer></script>'
+    script = '<script src="./spoiler_guard.js?v=cup-views-4" defer></script>'
     if "spoiler_guard.js" in html:
         html = re.sub(r'<script src="\./spoiler_guard\.js\?v=[^"]+" defer></script>', script, html)
         page.write_text(html, encoding="utf-8")
@@ -89,14 +89,6 @@ def _strip_standings_tables(page: Path) -> None:
         html,
         flags=re.DOTALL,
     )
-    page.write_text(html, encoding="utf-8")
-
-
-def _strip_standings_script(page: Path) -> None:
-    if not page.exists():
-        return
-    html = page.read_text(encoding="utf-8")
-    html = re.sub(r'\s*<script src="\./spoiler_guard\.js\?v=[^"]+" defer></script>', "", html)
     page.write_text(html, encoding="utf-8")
 
 
@@ -508,7 +500,7 @@ def write_pages_site(seasons_root: Path, output_dir: Path, season_dir: Path | No
     _copy_if_exists(source_spoiler_guard, output_dir / "spoiler_guard.js")
     _ensure_spoiler_guard(output_dir / "calendar.html")
     _strip_calendar_scores(output_dir / "calendar.html")
-    _strip_standings_script(output_dir / "standings.html")
+    _ensure_spoiler_guard(output_dir / "standings.html")
 
     season_json_path = season_dir / "season.json"
     season_year = int(season_dir.name) if season_dir.name.isdigit() else 0
