@@ -1,5 +1,5 @@
 {
-  "year": 1977,
+  "year": 1978,
   "competitions": [
     "league",
     "local_cup",
@@ -11,5 +11,5 @@
     "TODO: implement promotion_relegation_playoffs",
     "TODO: implement final_round"
   ],
-  "replay_started_at": "2026-06-12T02:16:18.000313+00:00"
+  "replay_started_at": "2026-06-12T13:33:11.891931+00:00"
 }
